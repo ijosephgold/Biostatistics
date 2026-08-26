@@ -1,0 +1,26 @@
+Site,Individual,Strength,Length,Thread count
+Polluted,PL1,1000,53,23
+Polluted,PL2,1820,57,39
+Polluted,PL3,80,39,7
+Polluted,PL4,1480,74,50
+Polluted,PL5,960,41,40
+Polluted,PL6,600,25,2
+Polluted,PL7,20,24,7
+Polluted,PL8,500,47,32
+Polluted,PL9,60,25,9
+Polluted,PL10,1260,76,34
+Pristine,PR1,1880,35,16
+Pristine,PR2,700,53,32
+Pristine,PR3,1840,65,7
+Pristine,PR4,1080,52,33
+Pristine,PR5,460,54,39
+Pristine,PR6,520,47,18
+Pristine,PR7,660,55,26
+Pristine,PR8,1180,52,21
+Pristine,PR9,500,33,30
+Pristine,PR10,760,50,28
+Pristine,PR11,620,45,23
+Pristine,PR12,520,35,18
+Pristine,PR13,980,42,30
+Pristine,PR14,60,29,13
+Pristine,PR15,160,41,24
