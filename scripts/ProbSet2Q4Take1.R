@@ -15,3 +15,5 @@ sum(p)
 
 
 binom.test(1, 132, 0.5, alternative = c("less"))
+
+testing auto git pushBack()
