@@ -113,10 +113,10 @@ arrows(x0 = barploter, y0 = y - stdev,
 ybar <- mean(data$Strength)
 SEMy <- sd(data$Strength)/sqrt(count(data))
 #find the critical value of t with n-1 df
-qt(p = 0.05, df = 24, lower.tail = FALSE)
-lowerCL <- ybar-(SEMy*1.710882)
+qt(p = 0.025, df = 24, lower.tail = FALSE)
+lowerCL <- ybar-(SEMy*2.063899)
 lowerCL
-upperCL <- ybar+(SEMy*1.710882)
+upperCL <- ybar+(SEMy*2.063899)
 upperCL
 
 #make a histogram w/ the confidence limits
