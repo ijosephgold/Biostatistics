@@ -1,3 +1,6 @@
-﻿,Disturbed,Undisturbed
-Native,248,122
-Non-native,368,307
+﻿Observed,Disturbed,Undisturbed,Total,Expected Proportions,Disturbed,Undisturbed,Total,Expected Counts,Disturbed,Undisturbed,Total
+Native,248,122,370,Native,0.20871317,0.145353815,0.354066986,Native,218.1052632,151.8947368,370
+Non-native,368,307,675,Non-native,0.380760514,0.265172501,0.645933014,Non-native,397.8947368,277.1052632,675
+Total,616,429,1045,Total,0.589473684,0.410526316,1045,Total,616,429,1045
+15.65452375,,,,,,,,,,,
+4.02025E-05,,,,,,,,,,,
