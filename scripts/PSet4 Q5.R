@@ -7,8 +7,7 @@ library(car)
 library(readxl)
 
 yewsdata <- read.csv("data/Yew data.csv")
-inspect_df
-(yewsdata)
+inspect_df(yewsdata)
 
 qqPlot(yewsdata$Male, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Male Cones Q-Q plot", col.lines = "red")
 
