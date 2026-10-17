@@ -2,7 +2,7 @@
 #H_A: individual Yew conifers do not produce equal proportions of male and female cones (ie. they're dioecious), population mean index is not 0.5
 
 yewsdata <- read.csv("data/Yew data.csv")
-inspect
+inspect_df(yewsdata)
 
 qqPlot(yewsdata$Male, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Male Cones Q-Q plot", col.lines = "red")
 
