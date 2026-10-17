@@ -4,3 +4,4 @@
 .httr-oauth
 .DS_Store
 .quarto
+auto_push.sh
