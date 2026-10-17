@@ -30,63 +30,47 @@ sync <- function(message = paste("Update:", format(Sys.time(), "%Y-%m-%d %H:%M:%
 
 # Dataset inspection helper
 inspect_df <- function(df, digits = 2) {
-  # --- 1. Dataset Overview ---
-  cat("========================================================\n")
-  cat("                  DATASET OVERVIEW                      \n")
-  cat("========================================================\n")
-  cat(sprintf("Dimensions : %d rows x %d columns\n", nrow(df), ncol(df)))
+  cat("========================================================================================\n")
+  cat("                                    DATASET OVERVIEW                                    \n")
+  cat("========================================================================================\n")
+  cat(sprintf("Dimensions  : %d rows x %d columns\n", nrow(df), ncol(df)))
   total_cells <- prod(dim(df))
   total_na <- sum(is.na(df))
-  cat(sprintf("Total NA   : %d (%.1f%% of all cells)\n", total_na, (total_na / total_cells) * 100))
-  cat(sprintf("Completeness: %d complete cases (%.1f%%)\n\n", 
+  cat(sprintf("Total NA    : %d (%.1f%% of all cells)\n", total_na, (total_na / total_cells) * 100))
+  cat(sprintf("Completeness: %d complete rows (%.1f%%)\n\n", 
               sum(complete.cases(df)), 
               (sum(complete.cases(df)) / nrow(df)) * 100))
   
-  # Helper for statistical mode
   calc_mode <- function(x) {
     clean_x <- x[!is.na(x)]
     if (length(clean_x) == 0) return(NA)
     ux <- unique(clean_x)
     tab <- tabulate(match(clean_x, ux))
-    ux[tab == max(tab)][1] # returns first mode if multimodal
+    ux[tab == max(tab)][1]
   }
   
-  # --- 2. Numeric Summary Table ---
   num_cols <- names(df)[sapply(df, is.numeric)]
   if (length(num_cols) > 0) {
-    cat("--- Numeric Variables (Parametric & Non-Parametric) ---\n")
+    cat("--- Numeric Variables ---\n")
     num_list <- lapply(num_cols, function(col) {
       vals <- df[[col]]
       clean <- vals[!is.na(vals)]
       n_clean <- length(clean)
       
-      if (n_clean > 1) {
-        m    <- mean(clean)
-        med  <- median(clean)
-        mod  <- calc_mode(clean)
-        s_d  <- sd(clean)
-        vari <- var(clean)
-        sem  <- s_d / sqrt(n_clean)
-        iqr_val <- IQR(clean)
-        mini <- min(clean)
-        maxi <- max(clean)
-      } else {
-        m <- med <- mod <- s_d <- vari <- sem <- iqr_val <- mini <- maxi <- NA
-      }
-      
       data.frame(
         Variable = col,
         N = n_clean,
-        NA_Count = sum(is.na(vals)),
-        Mean = round(m, digits),
-        SD = round(s_d, digits),
-        SEM = round(sem, digits),
-        Var = round(vari, digits),
-        Median = round(med, digits),
-        IQR = round(iqr_val, digits),
-        Min = round(mini, digits),
-        Max = round(maxi, digits),
-        Mode = round(mod, digits),
+        Unique = length(unique(clean)),
+        NonZero_N = sum(clean != 0),
+        Mean = round(mean(clean), digits),
+        SD = round(sd(clean), digits),
+        SEM = round(sd(clean) / sqrt(n_clean), digits),
+        Var = round(var(clean), digits),
+        Median = round(median(clean), digits),
+        IQR = round(IQR(clean), digits),
+        Min = round(min(clean), digits),
+        Max = round(max(clean), digits),
+        Mode = round(calc_mode(clean), digits),
         stringsAsFactors = FALSE
       )
     })
@@ -94,7 +78,6 @@ inspect_df <- function(df, digits = 2) {
     cat("\n")
   }
   
-  # --- 3. Categorical / Factor Summary Table ---
   cat_cols <- names(df)[!sapply(df, is.numeric)]
   if (length(cat_cols) > 0) {
     cat("--- Categorical & Factor Variables ---\n")
@@ -116,5 +99,5 @@ inspect_df <- function(df, digits = 2) {
     })
     print(do.call(rbind, cat_list), row.names = FALSE)
   }
-  cat("========================================================\n")
+  cat("========================================================================================\n")
 }
