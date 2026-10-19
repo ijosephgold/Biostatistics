@@ -18,4 +18,6 @@ qqPlot(yewssqrt_Male, distribution = "norm", envelope = list(level = 0.95, col =
 #yewslog_Male <- log(yewsdata$Male)
 #qqPlot(yewslog_Male, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Male Cones LOG Q-Q plot", col.lines = "red") #can't graph Infinite values
 
-wwilcox.test(yewsdata$Male, yewsdata$Female, paired = TRUE, alternative = "two.sided", conf.level = 0.95)       
+wilcox.test(yewsdata$Male, yewsdata$Female, paired = TRUE, alternative = "two.sided", conf.level = 0.95)       
+
+hist
