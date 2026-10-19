@@ -20,4 +20,4 @@ qqPlot(yewssqrt_Male, distribution = "norm", envelope = list(level = 0.95, col =
 
 wilcox.test(yewsdata$Male, yewsdata$Female, paired = TRUE, alternative = "two.sided", conf.level = 0.95)       
 
-hist
+hist(yewsdata$PhGenRto, main = "Histogram of Phenology", xlab = "Phenology", col = "lightblue", border = "black")
