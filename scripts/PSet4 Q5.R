@@ -1,5 +1,6 @@
 #H_0: individual Yew conifers produce roughly equal proportions of male and female cones (ie. they're monoecious), population mean index is 0.5
 #H_A: individual Yew conifers do not produce equal proportions of male and female cones (ie. they're dioecious), population mean index is not 0.5
+#I wanna do a Paired T-test because I'm looking at Dependent "paired" data, the Male and Female cone counts are from the same individual trees.
 
 library(tidyverse)
 library(ggplot2)
@@ -16,4 +17,5 @@ qqPlot(yewssqrt_Male, distribution = "norm", envelope = list(level = 0.95, col =
 
 #yewslog_Male <- log(yewsdata$Male)
 #qqPlot(yewslog_Male, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Male Cones LOG Q-Q plot", col.lines = "red") #can't graph Infinite values
-       
+
+t.test       
