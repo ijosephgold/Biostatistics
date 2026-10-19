@@ -15,4 +15,5 @@ yewssqrt_Male <- sqrt(yewsdata$Male)
 qqPlot(yewssqrt_Male, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Male Cones SQRT Q-Q plot", col.lines = "red")
 
 yewslog_Male <- log(yewsdata$Male)
-qqPlot(yewslog)
+qqPlot(yewslog_Male, distribution = "norm", envelope = list(level = 0.95, col = "blue")
+       
