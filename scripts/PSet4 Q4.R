@@ -50,5 +50,3 @@ t.test(log_chlorophyll ~ strain, data = Microalgaedata_long, var.equal = TRUE)
 #df = n_Wildtype + n_Mutant - 2 = 30 + 25 - 2 = 53
 #p-value = 0.1193 > 0.05, so we fail to reject the null hypothesis.
 #There is not enough evidence to conclude that the mean Log of Chlorophyll concentration is different between the two groups.
-
-#Test
