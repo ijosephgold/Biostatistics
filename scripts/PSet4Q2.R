@@ -19,7 +19,7 @@ hist(data$Differences, main = "Histogram of Differences in Mate Attraction", xla
 qqPlot(data$Differences, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Q-Q plot of Differences in Mate Attraction", col.lines = "red")
 skewness(data$Differences)  #if value for Skewness is greater than 1 or less than -1, the data is highly skewed. If the value is between -1 and -0.5 or between 0.5 and 1, the data is moderately skewed. If the value is between -0.5 and 0.5, the data is approximately symmetric.
 kurtosis(data$Differences) #if value for Kurtosis is greater than 3, the data is heavy-tailed. If the value is less than 3, the data is light-tailed. If the value is approximately 3, the data is approximately normal.if 
-shapiro.test(data$Differences)
+shapiro.test(data$Differences) #If the p-value is less than 0.05, we reject the null hypothesis and conclude that the data is not normally distributed.if
 
 #transform into long data
 #take the data then gather it
