@@ -29,7 +29,7 @@ shapiro.test(Microalgaedata_long$log_Concentration)  #H_0: The data is normally 
 bartlett.test(log_Concentration ~ Genotype, data = Microalgaedata_long)
 
 hist(Microalgaedata_long$Concentration, main = "Histogram of Concentration", xlab = "Concentration", col = "lightblue", border = "black")
-hist
+hist(Microalgaedata_long$log_Concentration, main = "Histogram of Log Concentration", xlab = "Log Concentration", col = "lightblue", border = "black")
 boxplot(Microalgaedata$Wildtype, Microalgaedata$Mutant, names = c("Wildtype", "Mutant"),
         col = "skyblue", xlab = "Strain", ylab = "Concentration")
 t.test(log_Concentration ~ Genotype, data = Microalgaedata_long, var.equal = TRUE) 
