@@ -18,6 +18,7 @@ yewsdata_long <- yewsdata %>%
 yewsdata_long
 yewsdata_long$Abundance <- sqrt(yewsdata_long$Abundance)
 yewsdata_long
+qqPlot(yewsdata_long$Abundance, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "S"
 yewssqrt_Male <- sqrt(yewsdata$Male)
 qqPlot(yewssqrt_Male, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Male Cones SQRT Q-Q plot", col.lines = "red")
 
