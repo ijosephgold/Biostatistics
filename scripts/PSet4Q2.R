@@ -11,7 +11,7 @@ data
 
 hist(data$Differences, main = "Histogram of Differences in Mate Attraction", xlab = "Differences (Depolarized - Polarized)", col = "lightblue", border = "black")
 qqPlot(data$Differences, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Q-Q plot of Differences in Mate Attraction", col.lines = "red")
-skew  
+skewness(data$Differences)  
 (data$Differences)
 kurtosis(data$Differences)
 t.test(data$Polarized, data$Depolarized, paired = TRUE)
