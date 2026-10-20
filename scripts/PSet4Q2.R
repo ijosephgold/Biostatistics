@@ -5,13 +5,11 @@ read.csv("Data/Butterfly wings.csv")
 data <- read.csv("Data/Butterfly wings.csv")
 
 #subtract Difference Depolarized - Polarized 
-Differences <- (data$Depolarized - data$Polarized)
-Differences
-data$Male
-
-#Add collumn for Differences in Butterfly wings.csv /how to add collumn in csv file?data$Differences <- Differences
+#Add collumn for Differences
 data$Differences <- (data$Depolarized - data$Polarized)
 data
+
+hist(data$Differences, main = "Histogram of Differences in Mate Attraction", xlab = "Differences (Depolarized - Polarized)", col = "lightblue", border = "black")
 
 t.test(data$Polarized, data$Depolarized, paired = TRUE)
 
