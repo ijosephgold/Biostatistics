@@ -14,8 +14,8 @@ qqPlot(yewsdata$Male, distribution = "norm", envelope = list(level = 0.95, col =
 
 
 yewsdata_long <- yewsdata %>%
-  gather(key = "Gender", value = "Concentration", Wildtype, Mutant, na.rm = TRUE)
-Microalgaedata_long
+  gather(key = "Gender", value = "Concentration", Male, Female, na.rm = TRUE)
+yewsdata_long
 
 yewssqrt_Male <- sqrt(yewsdata$Male)
 qqPlot(yewssqrt_Male, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Male Cones SQRT Q-Q plot", col.lines = "red")
