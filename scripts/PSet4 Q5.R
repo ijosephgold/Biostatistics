@@ -16,9 +16,11 @@ qqPlot(yewsdata$Male, distribution = "norm", envelope = list(level = 0.95, col =
 yewsdata_long <- yewsdata %>%
   gather(key = "Gender", value = "Abundance", Male, Female, na.rm = TRUE)
 yewsdata_long
-yewsdata_long$Abundance <- sqrt(yewsdata_long$Abundance)
+qqPlot(yewsdata_long$Abundance, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Abundance of Cones Q-Q plot", col.lines = "red")  
+yews_long$Abundance <- sqrt(yewsdata_long$Abundance)
 yewsdata_long
 qqPlot(yewsdata_long$Abundance, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Sqrt Abundance of Cones", col.lines = "red")
+
 yewssqrt_Male <- sqrt(yewsdata$Male)
 qqPlot(yewssqrt_Male, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Male Cones SQRT Q-Q plot", col.lines = "red")
 
