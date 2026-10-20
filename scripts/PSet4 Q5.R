@@ -12,6 +12,11 @@ inspect_df(yewsdata)
 yewsdata
 qqPlot(yewsdata$Male, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Male Cones Q-Q plot", col.lines = "red")
 
+
+yewsdata_long <- yewsdata %>%
+  gather(key = "Gender", value = "Concentration", Wildtype, Mutant, na.rm = TRUE)
+Microalgaedata_long
+
 yewssqrt_Male <- sqrt(yewsdata$Male)
 qqPlot(yewssqrt_Male, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Male Cones SQRT Q-Q plot", col.lines = "red")
 
