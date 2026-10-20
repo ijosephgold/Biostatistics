@@ -3,7 +3,7 @@
   
 Urchins <- read.csv("data/PSet4 Q3 - Sheet1.csv")
 view(Urchins)
-
+inspect_df(Urchins)
 VarianceFlat  <- var(Urchins$Flat)
 VarianceRocky <- var(Urchins$Rocky)
 
