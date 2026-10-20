@@ -12,8 +12,7 @@ library(moments)
 Microalgaedata <- read.csv("data/Microalagae data.csv")
 Microalgaedata
 inspect_df(Microalgaedata)
-hist(Microalgaedata$Wildtype, main = "Histogram of Wildtype Concentration", xlab = "Wildtype Concentration", col = "lightblue", border = "black")
-his
+
 Microalgaedata_long <- Microalgaedata %>%
   gather(key = "Genotype", value = "Concentration", Wildtype, Mutant, na.rm = TRUE)
 Microalgaedata_long
@@ -30,6 +29,7 @@ shapiro.test(Microalgaedata_long$log_Concentration)  #H_0: The data is normally 
 bartlett.test(log_Concentration ~ Genotype, data = Microalgaedata_long)
 
 hist(Microalgaedata_long$Concentration, main = "Histogram of Concentration", xlab = "Concentration", col = "lightblue", border = "black")
+hist
 boxplot(Microalgaedata$Wildtype, Microalgaedata$Mutant, names = c("Wildtype", "Mutant"),
         col = "skyblue", xlab = "Strain", ylab = "Concentration")
 t.test(log_Concentration ~ Genotype, data = Microalgaedata_long, var.equal = TRUE) 
