@@ -12,7 +12,7 @@ library(moments)
 Microalgaedata <- read.csv("data/Microalagae data.csv")
 Microalgaedata
 inspect_df(Microalgaedata)
-
+hist
 Microalgaedata_long <- Microalgaedata %>%
   gather(key = "Genotype", value = "Concentration", Wildtype, Mutant, na.rm = TRUE)
 Microalgaedata_long
@@ -28,8 +28,7 @@ qqPlot(Microalgaedata_long$log_Concentration, ylab = "Log Concentration", distri
 shapiro.test(Microalgaedata_long$log_Concentration)  #H_0: The data is normally distributed. H_A: The data is not normally distributed. If p-value is less than 0.05, the data is not normally distributed
 bartlett.test(log_Concentration ~ Genotype, data = Microalgaedata_long)
 
-hist
+hist(Microalgaedata_long$Concentration, main = "Histogram of Concentration", xlab = "Concentration", col = "lightblue", border = "black")
 boxplot(Microalgaedata$Wildtype, Microalgaedata$Mutant, names = c("Wildtype", "Mutant"),
         col = "skyblue", xlab = "Strain", ylab = "Concentration")
-hist(M
 t.test(log_Concentration ~ Genotype, data = Microalgaedata_long, var.equal = TRUE) 
