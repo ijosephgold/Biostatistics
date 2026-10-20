@@ -12,7 +12,8 @@ library(moments)
 Microalgaedata <- read.csv("data/Microalagae data.csv")
 Microalgaedata
 inspect_df(Microalgaedata)
-hist
+hist(Microalgaedata$Wildtype, main = "Histogram of Wildtype Concentration", xlab = "Wildtype Concentration", col = "lightblue", border = "black")
+his
 Microalgaedata_long <- Microalgaedata %>%
   gather(key = "Genotype", value = "Concentration", Wildtype, Mutant, na.rm = TRUE)
 Microalgaedata_long
