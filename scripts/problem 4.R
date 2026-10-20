@@ -28,8 +28,8 @@ qqPlot(Microalgaedata_long$log_Concentration, ylab = "Log Concentration", distri
 shapiro.test(Microalgaedata_long$log_Concentration)  #H_0: The data is normally distributed. H_A: The data is not normally distributed. If p-value is less than 0.05, the data is not normally distributed
 bartlett.test(log_Concentration ~ Genotype, data = Microalgaedata_long)
 
-hist(Microalgaedata$Wildtype, Microalgaedata$Mutant, main = "Concentration of Chlorophyll by Strain" )
+hist
 boxplot(Microalgaedata$Wildtype, Microalgaedata$Mutant, names = c("Wildtype", "Mutant"),
         col = "skyblue", xlab = "Strain", ylab = "Concentration")
-hist()
+hist(M
 t.test(log_Concentration ~ Genotype, data = Microalgaedata_long, var.equal = TRUE) 
