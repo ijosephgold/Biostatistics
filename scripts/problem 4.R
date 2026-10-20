@@ -32,4 +32,5 @@ hist(Microalgaedata_long$Concentration, main = "Histogram of Concentration", xla
 hist(Microalgaedata_long$log_Concentration, main = "Histogram of Log Concentration", xlab = "Log Concentration", col = "lightblue", border = "black")
 boxplot(Microalgaedata$Wildtype, Microalgaedata$Mutant, names = c("Wildtype", "Mutant"),
         col = "skyblue", xlab = "Strain", ylab = "Concentration")
+box
 t.test(log_Concentration ~ Genotype, data = Microalgaedata_long, var.equal = TRUE) 
