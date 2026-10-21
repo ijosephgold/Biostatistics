@@ -15,7 +15,7 @@ library(vegan) #for perMANOVA
 #load data
 sagedata <- read.csv("Data/Sagebrush data.csv")
 sagedata
-
+inspect_df(sagedata) #check for missing data)
 #fit data to a linear model with soil = x and height = y
 sagedata$Soil <- as.factor(sagedata$Soil)
 lm <- lm(Height~Soil, data=sagedata) #takes the data as lm(y~x)
