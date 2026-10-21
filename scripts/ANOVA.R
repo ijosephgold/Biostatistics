@@ -35,6 +35,7 @@ skewness(lmres)
 kurtosis(lmres)
 #next test equality of variances
 bartlett.test(Height~Soil, data=sagedata) #P > 0.05
+
 #or make a boxplot
 Sterile <- sagedata %>%
   filter(Soil == "Sterile")
@@ -90,7 +91,7 @@ ggplot(data=graphdata, aes(x=Soil, y=mean, fill=Soil)) +
 #load data
 genets <- read.csv("Data/Genet data.csv")
 genets
-
+inspect_df(genets) #check for missing data
 #create a univariate ANOVA with genet as a random effect
 genets$Genet <- as.factor(genets$Genet)
 #lmer() is like lm() but can take random effects
@@ -170,3 +171,4 @@ permutest(bd)
 #tests of homogeneity of dispersion are significant, but perMANOVA isn't detecting an effect of genet
 #these perMANOVA results are driven by unequal within-genet variance rather than differences in means
 #mixed model ANOVA with sqrt transformed data is the best choice for this analysis
+
