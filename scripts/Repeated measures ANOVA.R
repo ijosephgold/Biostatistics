@@ -11,6 +11,7 @@ library(ggplot2)
 #load data
 biofeedback <- read.csv("Data/Stress data.csv")
 biofeedback
+inspect
 
 #check model assumptions
 qqPlot(biofeedback$AverageBPM, ylab = "Average BPM")
