@@ -67,3 +67,28 @@ anova(loglm) #provides the ANOVA table
 summary(loglm) #provides extra details about the model
 
 
+#prepare data for plotting
+graphdata <- erodiumdata %>%
+  group_by(Treatment) %>%
+  summarize(mean=mean(product, na.rm=TRUE), se=sd(Height, na.rm=TRUE)/sqrt(length(na.omit(Height))))
+graphdata
+#rearrange order of the levels on the x-axis
+graphdata$Soil <- factor(graphdata$Soil, levels = c("Sterile", "Sand Dune", "Mountains", "Chaparral"))
+
+#make a barplot with ggplot()
+ggplot(data=graphdata, aes(x=Soil, y=mean, fill=Soil)) + 
+  theme_bw() + 
+  theme(axis.text.x=element_text(color="black", size=14), 
+        axis.text.y=element_text(color="black", size=13), 
+        axis.title.x = element_text(color="black", size=16, face="bold"), 
+        axis.title.y = element_text(color="black", size=16, face="bold"),
+        panel.grid.major=element_blank(), 
+        panel.grid.minor=element_blank()) +
+  geom_bar(colour="black", fill="grey", width=0.8, stat="identity") + 
+  guides(fill=FALSE) + 
+  ylab("Height (cm)") +
+  xlab("Soil Type") +
+  geom_errorbar(aes(ymax=mean+se, ymin=mean-se), stat="identity", 
+                position=position_dodge(width=0.9), width=0.1) +
+  geom_text(aes(label=c("a", "bc", "b", "c"), y = mean + 1))
+#note that the labels are assigned in the order of levels in "graphdata"
