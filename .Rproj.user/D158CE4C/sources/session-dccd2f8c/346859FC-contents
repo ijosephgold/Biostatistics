@@ -1,0 +1,127 @@
+#load libraries 
+library(tidyverse)
+library(DescTools) #for G test
+library(ggplot2) #for plotting
+
+# CSV import
+data <- read.csv("data/Foraging data.csv")
+
+#make_contingency_table <- function(...) Creates a function named make_contingency_table. Data; dataset containing my observations or summarized counts. count_col; column containing the numerical counts, such as "Count". row_col; categorical variable I want as the table rows, such as "Substrate".col_colThe categorical variable you want as the table columns, such as "Behavior".
+make_contingency_table <- function(data, count_col, row_col, col_col) {
+#This section builds the formula; table_formula <- reformulate(c(row_col, col_col),response = count_col) 
+#reformulate() builds an R formula using the column names you provide  
+    table_formula <- reformulate(
+    c(row_col, col_col),
+    response = count_col
+  )
+#xtabs is an R function that creates a cross-tabulation, aka a contingency table
+#The first data tells xtabs which argument it is receiving, The second data refers to our actual dataset in the Global Environment.
+        xtabs(table_formula, data = data)
+}
+
+# Apply it to the current dataset
+#Runs your make_contingency_table function, Uses the dataset named data, Saves the resulting contingency table as contable_obs
+contable_obs <- make_contingency_table(
+  data = data,
+  count_col = "Count",
+  row_col = "Substrate",
+  col_col = "Behavior"
+)
+
+contable_obs
+
+#run the appropriate analysis. [G-test?] 
+#can't use G-test for this problem since we have zero values 
+#DescTools::GTest(contable_obs)
+
+#Non-parametric fisher test of independence template
+#defining the function, B sets number of simulations
+run_fisher_test <- function(conttingency_table, B = 1000) {
+#runs fisher's exact test
+    fisher.test(
+    conttingency_table, 
+#tells r to estimate p-value using random simulations instead of calculating it directly
+        simulate.p.value = TRUE, 
+    B = B
+  )
+}
+
+#using it 
+fisher_result <- run_fisher_test(contable_obs)
+
+fisher_result
+
+#creating template graph
+plot_contingency <- function(
+    data,
+    count_col,
+    x_col,
+    fill_col,
+    graph_type = "counts",
+    graph_title = NULL
+) {
+  
+# Allowing only these two graph types
+  graph_type <- match.arg(graph_type, c("counts", "proportion"))
+  
+# Creates default title if not provided
+  if (is.null(graph_title)) {
+    graph_title <- paste(fill_col, "by", x_col)
+  }
+  
+#Choose appropriate bar arrangement
+#graph_type=counts; creates raw-count graph  
+  bar_position <- if (graph_type == "counts") { 
+#position=dodge creates side by side bars, best for comparing observed counts    
+    "dodge"
+  } else { 
+#position=fill creates stacked bars, where every substrate totals 100%    
+    "fill"
+  }
+  
+#Creates graph
+  graph <- ggplot(
+    data,
+#maps supplied collumns to graph. x_col; goes on x-axis. count_col; determines bar height. fill_col; determines bar
+        aes(
+#.data[[...]] lets function use column names supplied as text          
+      x = .data[[x_col]],
+      y = .data[[count_col]],
+      fill = .data[[fill_col]]
+    )
+  ) + 
+#geom_col; creates bars using existing values in data count column  
+    geom_col(position = bar_position) +
+    labs(
+      title = graph_title,
+      x = x_col,
+      y = if (graph_type == "counts") {
+        "Observed Count"
+      } else { 
+#graph_type=proportion creates relative frequency graph        
+        "Proportion"
+      },
+      fill = fill_col
+    ) +
+    theme_minimal()
+  
+#Formats y-axis as percentages for proportional graphs
+  if (graph_type == "proportion") {
+    graph <- graph +
+      scale_y_continuous(labels = scales::percent)
+  }
+  
+  return(graph)
+}
+
+#using it with current data
+#for future contingency problems, change only column name arguments: data=new_data, count_col=Frequency, x_col=Habitat, fill_col=Species, graph_type=counts
+plot_contingency(
+  data = data,
+  count_col = "Count",
+  x_col = "Substrate",
+  fill_col = "Behavior",
+  graph_type = "counts", #for proportional graph change to graph_type = "proportion"
+  graph_title = "Mountain Chickadee Foraging Behaviors by Substrate"
+)
+

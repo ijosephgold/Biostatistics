@@ -1,0 +1,26 @@
+{
+    "id": "64E1BE69",
+    "path": "C:/Rstudio/Biostatistics/scripts/ANOVA.R",
+    "project_path": "scripts/ANOVA.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1792617686573.0,
+    "source_on_save": false,
+    "relative_order": 4,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "60,0",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1792619553,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1792619553672,
+    "read_only": false,
+    "read_only_alternatives": []
+}

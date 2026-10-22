@@ -1,0 +1,26 @@
+{
+    "id": "B34C624E",
+    "path": "C:/Biostats Rstudio Galaxy/Biostatistics/scripts/Data transformations.R",
+    "project_path": "scripts/Data transformations.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1790805944473.0,
+    "source_on_save": false,
+    "relative_order": 6,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "25,31",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1790721014,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1790721014,
+    "read_only": false,
+    "read_only_alternatives": []
+}
