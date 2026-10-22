@@ -42,28 +42,28 @@ skewness(lmres)
 kurtosis(lmres)
 #next test equality of variances
 bartlett.test(productHW ~ Treatment, data = erodiumdata) #P > 0.05
-hist(resid)
+hist(resid(lm))
 erodiumdata$logProduct <- log(erodiumdata$productHW) #log transform the data to see if it improves normality)
 erodiumdata
 
 #fit data to a linear model with Treatment = x and productHW = y
 erodiumdata$Treatment <- as.factor(erodiumdata$Treatment)
-lm <- lm(logProduct~Treatment, data=erodiumdata) #takes the data as lm(y~x)
-lm
+loglm <- lm(logProduct~Treatment, data=erodiumdata) #takes the data as lm(y~x)
+loglm
 
 #check the assumptions
 #recall, we want to look at the residuals to assess normality
-lmres <- resid(lm)
-qqPlot(lmres, "norm")
-hist(lmres, xlab = "Log Product Height residuals", main = "")
-boxplot(lmres, ylab = "Log Product Height residuals")
-shapiro.test(lmres) #P > 0.05
-skewness(lmres) 
-kurtosis(lmres)
+loglmres <- resid(lm)
+qqPlot(loglmres, "norm")
+hist(loglmres, xlab = "Log Product Height residuals", main = "")
+boxplot(loglmres, ylab = "Log Product Height residuals")
+shapiro.test(loglmres) #P > 0.05
+skewness(loglmres) 
+kurtosis(loglmres)
 #next test equality of variances
 bartlett.test(logProduct ~ Treatment, data = erodiumdata) #P > 0.05
 
-anova(lm) #provides the ANOVA table
-summary(lm) #provides extra details about the model
+anova(loglm) #provides the ANOVA table
+summary(loglm) #provides extra details about the model
 
 
