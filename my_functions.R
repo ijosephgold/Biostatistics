@@ -379,3 +379,35 @@ add_transformations <- function(data, variable) {
   
   return(data)
 }
+
+
+
+
+compare_transformations <- function(data, variable, group = NULL) {
+  
+  possible_variables <- c(
+    variable,
+    paste0(variable, "_sqrt"),
+    paste0(variable, "_square"),
+    paste0(variable, "_log"),
+    paste0(variable, "_log10")
+  )
+  
+  possible_variables <- possible_variables[
+    possible_variables %in% names(data)
+  ]
+  
+  for (v in possible_variables) {
+    
+    cat("\n==============================\n")
+    cat("Variable:", v, "\n")
+    cat("==============================\n")
+    
+    if (is.null(group)) {
+      print(shapiro.test(na.omit(data[[v]])))
+    } else {
+      formula <- reformulate(group, response = v)
+      print(car::leveneTest(formula, data = data))
+    }
+  }
+}
