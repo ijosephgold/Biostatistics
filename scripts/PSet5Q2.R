@@ -42,7 +42,7 @@ skewness(lmres)
 kurtosis(lmres)
 #next test equality of variances
 bartlett.test(productHW ~ Treatment, data = erodiumdata) #P > 0.05
-
+hist(resid)
 erodiumdata$logProduct <- log(erodiumdata$productHW) #log transform the data to see if it improves normality)
 erodiumdata
 
@@ -65,3 +65,5 @@ bartlett.test(logProduct ~ Treatment, data = erodiumdata) #P > 0.05
 
 anova(lm) #provides the ANOVA table
 summary(lm) #provides extra details about the model
+
+
