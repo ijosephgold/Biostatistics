@@ -70,7 +70,7 @@ summary(loglm) #provides extra details about the model
 #prepare data for plotting
 graphdata <- erodiumdata %>%
   group_by(Treatment) %>%
-  summarize(mean=mean(product, na.rm=TRUE), se=sd(Height, na.rm=TRUE)/sqrt(length(na.omit(Height))))
+  summarize(mean=mean(productHW, na.rm=TRUE), se=sd(productHW, na.rm=TRUE)/sqrt(length(na.omit(productHW))))
 graphdata
 #rearrange order of the levels on the x-axis
 graphdata$Soil <- factor(graphdata$Soil, levels = c("Sterile", "Sand Dune", "Mountains", "Chaparral"))
