@@ -73,10 +73,10 @@ graphdata <- erodiumdata %>%
   summarize(mean=mean(productHW, na.rm=TRUE), se=sd(productHW, na.rm=TRUE)/sqrt(length(na.omit(productHW))))
 graphdata
 #rearrange order of the levels on the x-axis
-graphdata$Soil <- factor(graphdata$Soil, levels = c("Sterile", "Sand Dune", "Mountains", "Chaparral"))
+graphdata$Treatment <- factor(graphdata$Treatment, levels = c("control", "shade", "wind", "3XH2o"))
 
 #make a barplot with ggplot()
-ggplot(data=graphdata, aes(x=Soil, y=mean, fill=Soil)) + 
+ggplot(data=graphdata, aes(x=Treatment, y=mean, fill=Treatment)) + 
   theme_bw() + 
   theme(axis.text.x=element_text(color="black", size=14), 
         axis.text.y=element_text(color="black", size=13), 
@@ -86,8 +86,8 @@ ggplot(data=graphdata, aes(x=Soil, y=mean, fill=Soil)) +
         panel.grid.minor=element_blank()) +
   geom_bar(colour="black", fill="grey", width=0.8, stat="identity") + 
   guides(fill=FALSE) + 
-  ylab("Height (cm)") +
-  xlab("Soil Type") +
+  ylab("Product Height x Width") +
+  xlab("Treatment Type") +
   geom_errorbar(aes(ymax=mean+se, ymin=mean-se), stat="identity", 
                 position=position_dodge(width=0.9), width=0.1) +
   geom_text(aes(label=c("a", "bc", "b", "c"), y = mean + 1))
