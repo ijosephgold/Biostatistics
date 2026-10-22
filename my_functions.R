@@ -344,3 +344,38 @@ anova_assumption_report <- function(data,
 }
 
 
+#Transformation function
+add_transformations <- function(data, variable) {
+  
+  if (!variable %in% names(data)) {
+    stop("That variable was not found in the data frame.")
+  }
+  
+  x <- data[[variable]]
+  
+  if (!is.numeric(x)) {
+    stop("The selected variable must be numeric.")
+  }
+  
+  data[[paste0(variable, "_sqrt")]] <- ifelse(
+    x >= 0,
+    sqrt(x),
+    NA
+  )
+  
+  data[[paste0(variable, "_square")]] <- x^2
+  
+  data[[paste0(variable, "_log")]] <- ifelse(
+    x > 0,
+    log(x),
+    NA
+  )
+  
+  data[[paste0(variable, "_log10")]] <- ifelse(
+    x > 0,
+    log10(x),
+    NA
+  )
+  
+  return(data)
+}
