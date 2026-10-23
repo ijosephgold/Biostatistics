@@ -12,7 +12,10 @@
 # ---------------------------------------------------------------
 
 load_biostats_packages <- function(install_missing = FALSE) {
-  required_packages <- c("car")
+  required_packages <- c(
+    "car", "rstatix", "performance", "effectsize", "parameters",
+    "see", "insight", "ggResidpanel", "emmeans"
+  )
   missing_packages <- required_packages[
     !vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)
   ]
@@ -25,16 +28,20 @@ load_biostats_packages <- function(install_missing = FALSE) {
   }
 
   if (length(missing_packages) == 0) {
-    message("Biostatistics toolkit loaded. Optional package car is available.")
+    message("Biostatistics toolkit loaded. All optional packages are available.")
   } else {
     message(
       "Biostatistics toolkit loaded. Optional package(s) unavailable: ",
       paste(missing_packages, collapse = ", "),
-      ". Levene's tests will be skipped."
+      ". Some enhanced features will be skipped."
     )
   }
 
   invisible(missing_packages)
+}
+
+install_biostats_packages <- function() {
+  load_biostats_packages(install_missing = TRUE)
 }
 
 
@@ -417,11 +424,61 @@ compare_transformations <- function(data,
 # 7. ANOVA WORKFLOW
 # ---------------------------------------------------------------
 
+enhanced_model_report <- function(model,
+                                  diagnostic_plots = TRUE,
+                                  effect_sizes = TRUE,
+                                  model_checks = TRUE) {
+  if (!inherits(model, "lm") && !inherits(model, "aov")) {
+    stop("model must be an lm or aov object.")
+  }
+
+  output <- list()
+
+  if (effect_sizes && requireNamespace("effectsize", quietly = TRUE)) {
+    output$eta_squared <- effectsize::eta_squared(model, ci = 0.95)
+    output$omega_squared <- effectsize::omega_squared(model, ci = 0.95)
+
+    cat("\nEnhanced effect sizes:\n")
+    cat("Eta-squared with 95% confidence intervals:\n")
+    print(output$eta_squared)
+    cat("\nOmega-squared with 95% confidence intervals:\n")
+    print(output$omega_squared)
+  }
+
+  if (model_checks && requireNamespace("performance", quietly = TRUE)) {
+    output$normality_check <- performance::check_normality(model)
+    output$homogeneity_check <- performance::check_heteroscedasticity(model)
+
+    cat("\nEnhanced model checks from performance:\n")
+    cat("Normality check:\n")
+    print(output$normality_check)
+    cat("\nHeteroscedasticity check:\n")
+    print(output$homogeneity_check)
+  }
+
+  if (diagnostic_plots && requireNamespace("ggResidpanel", quietly = TRUE)) {
+    output$residual_panel <- ggResidpanel::resid_panel(
+      model,
+      plots = c("resid", "qq", "yvp"),
+      qqbands = TRUE
+    )
+    print(output$residual_panel)
+  }
+
+  if (length(output) == 0) {
+    cat("\nNo enhanced package results were available.\n")
+    cat("Run install_biostats_packages() to install the optional packages.\n")
+  }
+
+  invisible(output)
+}
+
 anova_workflow <- function(data,
                            formula,
                            alpha = 0.05,
                            plots = TRUE,
-                           run_tukey = TRUE) {
+                           run_tukey = TRUE,
+                           enhanced = TRUE) {
   if (!is.data.frame(data)) stop("data must be a data frame.")
   if (!inherits(formula, "formula")) stop("formula must look like y ~ group.")
 
@@ -573,15 +630,64 @@ anova_workflow <- function(data,
   cat("Approximate effect-size interpretation:", eta_interpretation, "\n")
 
   tukey_result <- NULL
+  emmeans_result <- NULL
   if (run_tukey && length(predictor_names) == 1 &&
       is.factor(model_frame[[predictor_names]])) {
-    tukey_result <- TukeyHSD(aov(model))
-    cat("\nTukey HSD post-hoc comparisons:\n")
-    print(tukey_result)
-    cat("Interpretation: Tukey compares specific pairs of groups after the overall ANOVA.\n")
-    cat("Pairs with adjusted p-values below", alpha, "show evidence of differing means.\n")
+    if (requireNamespace("emmeans", quietly = TRUE)) {
+      emmeans_result <- list(
+        estimated_means = emmeans::emmeans(model, specs = predictor_names[1]),
+        pairwise_comparisons = emmeans::pairs(
+          emmeans::emmeans(model, specs = predictor_names[1]),
+          adjust = "tukey"
+        )
+      )
+      cat("\nEstimated marginal means:\n")
+      print(emmeans_result$estimated_means)
+      cat("\nTukey-adjusted pairwise comparisons:\n")
+      print(emmeans_result$pairwise_comparisons)
+      cat("Interpretation: pairs with adjusted p-values below", alpha,
+          "show evidence of differing means.\n")
+    } else {
+      tukey_result <- TukeyHSD(aov(model))
+      cat("\nTukey HSD post-hoc comparisons:\n")
+      print(tukey_result)
+      cat("Interpretation: pairs with adjusted p-values below", alpha,
+          "show evidence of differing means.\n")
+    }
   } else if (run_tukey) {
     cat("\nTukey HSD was not automatically run because this is not a simple one-factor ANOVA.\n")
+  }
+
+  enhanced_results <- NULL
+  if (enhanced) {
+    enhanced_results <- enhanced_model_report(
+      model,
+      diagnostic_plots = plots,
+      effect_sizes = TRUE,
+      model_checks = TRUE
+    )
+
+    # rstatix provides an additional transparent one-way decision check.
+    if (requireNamespace("rstatix", quietly = TRUE) &&
+        length(predictor_names) == 1 &&
+        is.factor(model_frame[[predictor_names]])) {
+      rstatix_result <- tryCatch(
+        rstatix::check_test_assumptions(
+          data = model_frame,
+          formula = formula
+        ),
+        error = function(e) {
+          message("rstatix assumption recommendation was unavailable: ", e$message)
+          NULL
+        }
+      )
+
+      if (!is.null(rstatix_result)) {
+        enhanced_results$rstatix_assumptions <- rstatix_result
+        cat("\nrstatix assumption-based recommendation:\n")
+        print(rstatix_result)
+      }
+    }
   }
 
   if (plots) {
@@ -611,7 +717,9 @@ anova_workflow <- function(data,
     levene = levene_result,
     group_summary = group_summary,
     eta_squared = eta_squared,
-    tukey = tukey_result
+    tukey = tukey_result,
+    emmeans = emmeans_result,
+    enhanced = enhanced_results
   ))
 }
 
