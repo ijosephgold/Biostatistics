@@ -1,0 +1,30 @@
+#H_0: individual Yew conifers produce roughly equal proportions of male and female cones (ie. they're monoecious), population mean index is 0.5
+#H_A: individual Yew conifers do not produce equal proportions of male and female cones (ie. they're dioecious), population mean index is not 0.5
+#I wanna do a Paired T-test because I'm looking at Dependent "paired" data, the Male and Female cone counts are from the same individual trees.
+
+library(tidyverse)
+library(ggplot2)
+library(car)
+library(readxl)
+
+yewsdata <- read.csv("data/Yew data.csv")
+inspect_df(yewsdata)
+yewsdata
+
+yewsdata_long <- yewsdata %>%
+  gather(key = "Gender", value = "Abundance", Male, Female, na.rm = TRUE)
+yewsdata_long
+
+qqPlot(yewsdata_long$Abundance, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Abundance of Cones Q-Q plot", col.lines = "red")  
+
+yewsdata_long$Abundance <- sqrt(yewsdata_long$Abundance)
+yewsdata_long
+qqPlot(sqrt(yewsdata_long$Abundance), distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Sqrt Abundance of Cones", col.lines = "red")
+
+#yewslog_Male <- log(yewsdata$Male)
+#qqPlot(yewslog_Male, distribution = "norm", envelope = list(level = 0.95, col = "blue"), main = "Male Cones LOG Q-Q plot", col.lines = "red") #can't graph Infinite values
+
+wilcox.test(yewsdata$Male, yewsdata$Female, paired = TRUE, alternative = "two.sided", conf.level = 0.95)       
+
+hist(yewsdata$PhGenRto, main = "Histogram of Phenotypic Gender Expression", xlab = "Phenotypic Gender Ratio", ylim = c(0, 35), ylab = "Frequency", col = "lightblue", border = "black")
+
