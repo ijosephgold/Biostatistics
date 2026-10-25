@@ -21,10 +21,10 @@ The project startup file launches `run_sync.R` in a separate R process, so the R
 The ignore rules do not remove files already tracked by Git. After making the backups above on both laptops, open Git Bash in the Biostatistics folder and run:
 
 ```sh
-git rm -r --cached --ignore-unmatch .Rproj.user .RData .Rhistory .Ruserdata
+git rm -r --cached -f --ignore-unmatch .Rproj.user .RData .Rhistory .Ruserdata
 ```
 
-This removes those paths from Git's index while leaving their local copies in place. The automatic watcher will commit the index cleanup and push it. On the other laptop, the incoming deletion may be blocked by changed local session files; make its backup, run the same command there, then let the watcher sync. Do not delete the backups until both laptops show a clean working tree and the cleanup commit is on GitHub.
+The `--cached` option leaves the local files in place; `-f` lets Git remove them from its index even when RStudio has changed them. This does not delete the local copies. The automatic watcher will commit the index cleanup and push it. On the other laptop, the incoming deletion may be blocked by changed local session files; make its backup, run the same command there, then let the watcher sync. Do not delete the backups until both laptops show a clean working tree and the cleanup commit is on GitHub.
 
 ## Each laptop
 
