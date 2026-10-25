@@ -27,7 +27,16 @@ biostats_sync_write <- function(root, ...) {
 biostats_sync_git <- function(root, args, timeout = 60) {
   git <- Sys.which("git")
   if (!nzchar(git)) {
-    return(list(status = 127L, output = "Git was not found on PATH."))
+    candidates <- c(
+      file.path(Sys.getenv("ProgramFiles"), "Git", "bin", "git.exe"),
+      "C:/Program Files/Git/bin/git.exe"
+    )
+    candidates <- candidates[nzchar(candidates) & file.exists(candidates)]
+    if (length(candidates)) git <- candidates[[1]]
+  }
+  if (!nzchar(git)) {
+    return(list(status = 127L,
+                output = "Git was not found on PATH or in the standard Windows installation folder."))
   }
 
   quoted <- vapply(args, shQuote, character(1),
@@ -251,7 +260,14 @@ biostats_sync_run_worker <- function(root = biostats_sync_root()) {
   }
   on.exit(unlink(lock, recursive = TRUE, force = TRUE), add = TRUE)
   writeLines(as.character(Sys.getpid()), file.path(lock, "pid"))
-  Sys.setenv(GIT_TERMINAL_PROMPT = "0", GCM_INTERACTIVE = "Never")
+  Sys.setenv(
+    GIT_AUTHOR_NAME = "Joseph Goldenberg",
+    GIT_AUTHOR_EMAIL = "ijosephgold@gmail.com",
+    GIT_COMMITTER_NAME = "Joseph Goldenberg",
+    GIT_COMMITTER_EMAIL = "ijosephgold@gmail.com",
+    GIT_TERMINAL_PROMPT = "0",
+    GCM_INTERACTIVE = "Never"
+  )
   biostats_sync_write(root, "Background watcher started; checking every 60 seconds.")
 
   repeat {
