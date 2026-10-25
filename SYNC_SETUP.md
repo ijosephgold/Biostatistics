@@ -4,16 +4,17 @@ The project startup file launches `run_sync.R` in a separate R process, so the R
 
 ## Before updating either laptop
 
-1. Save open scripts and data files in RStudio.
-2. In File Explorer, make a backup copy of these items from the Biostatistics project folder to a location outside the repository, such as Documents\Biostatistics-session-backup:
+1. If an older auto-sync job is running, stop it in RStudio's **Jobs** pane before changing the repository files. If you cannot find it there, stop the older Rscript watcher from Task Manager. This prevents the old script from continuing to push while the fix is being installed.
+2. Save open scripts and data files in RStudio.
+3. In File Explorer, make a backup copy of these items from the Biostatistics project folder to a location outside the repository, such as Documents\Biostatistics-session-backup:
    - `.Rproj.user`
    - `.RData`
    - `.Rhistory`
    - `.Ruserdata`
    
    The tracked `.Rproj.user` folder contains RStudio job logs and saved source buffers. Keep the backup until both laptops have been updated and you have confirmed your work is present.
-3. Update the repository files on each laptop using GitHub Desktop: select the Biostatistics repository, choose **Fetch origin**, then **Pull origin**. Open the project by double-clicking its `.Rproj` file. The watcher starts automatically.
-4. If the watcher reports an incoming-change conflict, do not reset or discard anything. Read `.git/automatic-sync.log`, save your open work, and resolve the conflict in RStudio or GitHub Desktop. The watcher aborts a conflicting rebase and retains the local commits.
+4. After this pull request is merged, update the repository files on each laptop using GitHub Desktop: select the Biostatistics repository, choose **Fetch origin**, then **Pull origin**. Open the project by double-clicking its `.Rproj` file. The new watcher starts automatically.
+5. If the watcher reports an incoming-change conflict, do not reset or discard anything. Read `.git/automatic-sync.log`, save your open work, and resolve the conflict in RStudio or GitHub Desktop. The watcher aborts a conflicting rebase and retains the local commits.
 
 ## Stop tracking RStudio session state
 

@@ -143,6 +143,26 @@ biostats_sync_once <- function(root) {
   if (!biostats_sync_report_git(root, "Read working-tree status", status)) return(FALSE)
 
   if (length(status$output) && any(nzchar(status$output))) {
+    # Remove already-staged session edits from the index without changing their
+    # working copies. Keep staged deletions so the documented untracking command
+    # can be committed, but never include changing session-state contents.
+    session_staged <- git("diff", "--cached", "--name-status", "--",
+                          ".Rproj.user", ".RData", ".Rhistory", ".Ruserdata")
+    if (session_staged$status == 0L && length(session_staged$output)) {
+      for (line in session_staged$output[nzchar(session_staged$output)]) {
+        fields <- strsplit(line, "\t", fixed = TRUE)[[1]]
+        if (length(fields) >= 2L && fields[[1]] != "D") {
+          unstage <- git("reset", "-q", "--", fields[-1])
+          if (!biostats_sync_report_git(root, "Unstage RStudio session state", unstage)) {
+            return(FALSE)
+          }
+        }
+      }
+    } else if (session_staged$status != 0L) {
+      biostats_sync_report_git(root, "Check staged RStudio session state", session_staged)
+      return(FALSE)
+    }
+
     # RStudio session/workspace state is excluded even if it was tracked in the past.
     add <- git("add", "-A", "--", ".",
                ":(exclude).Rproj.user/**",
