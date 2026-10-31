@@ -35,25 +35,30 @@ summary(lm) #provides extra details about the model
 #recall, we want to look at the residuals to assess normality
 lmres <- resid(lm)
 qqPlot(lmres, "norm")
-hist(lmres, xlab = "Log Product Height residuals", main = "Histogram for Log Transformed ")
-boxplot(lmres, ylab = "Log Product Height residuals")
+hist(lmres, xlab = "Product Height residuals", main = "Histogram")
+boxplot(lmres, ylab = "Product Height residuals")
 shapiro.test(lmres) #P > 0.05
 skewness(lmres) 
 kurtosis(lmres)
 #next test equality of variances
 bartlett.test(productHW ~ Treatment, data = erodiumdata) #P > 0.05
-hist(resid(lm))
+#hist(resid(lm))
+
+
+#log transform the data to see if it improves normality
 erodiumdata$logProduct <- log(erodiumdata$productHW) #log transform the data to see if it improves normality)
 erodiumdata
 
 #fit data to a linear model with Treatment = x and productHW = y
 erodiumdata$Treatment <- as.factor(erodiumdata$Treatment)
+
 loglm <- lm(logProduct~Treatment, data=erodiumdata) #takes the data as lm(y~x)
 loglm
 
 #check the assumptions
 #recall, we want to look at the residuals to assess normality
-loglmres <- resid(lm)
+loglmres <- resid(loglm)
+
 qqPlot(loglmres, "norm")
 hist(loglmres, xlab = "Log Product Height residuals", main = "")
 boxplot(loglmres, ylab = "Log Product Height residuals")

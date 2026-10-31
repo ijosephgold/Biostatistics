@@ -1,5 +1,0 @@
-
-
-library(DescTools)
-
-GTest(observed, p = expected.proportions)

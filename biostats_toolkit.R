@@ -10,40 +10,65 @@
 # ---------------------------------------------------------------
 # 1. PACKAGE SETUP
 # ---------------------------------------------------------------
-
 load_biostats_packages <- function(install_missing = FALSE) {
+  
   required_packages <- c(
-    "car", "rstatix", "performance", "effectsize", "parameters",
-    "see", "insight", "ggResidpanel", "emmeans"
+    "car",
+    "ggplot2",
+    "dplyr",
+    "tidyr",
+    "readr",
+    "rstatix",
+    "moments",
+    "effectsize",
+    "emmeans",
+    "performance",
+    "moments",
+    "lme4",
+    "tidyverse",
+    "agricolae",
+    "vegan",
+    "rstatix",
+    "afex",
+    "ggpubr",
+    "emmeans"
   )
+  
   missing_packages <- required_packages[
-    !vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)
+    !vapply(
+      required_packages,
+      requireNamespace,
+      logical(1),
+      quietly = TRUE
+    )
   ]
-
-  if (length(missing_packages) > 0 && install_missing) {
-    install.packages(missing_packages)
-    missing_packages <- missing_packages[
-      !vapply(missing_packages, requireNamespace, logical(1), quietly = TRUE)
-    ]
+  
+  if (length(missing_packages) > 0) {
+    
+    if (install_missing) {
+      install.packages(missing_packages)
+    } else {
+      stop(
+        "These packages are missing: ",
+        paste(missing_packages, collapse = ", "),
+        "\nRun load_biostats_packages(install_missing = TRUE) once."
+      )
+    }
   }
-
-  if (length(missing_packages) == 0) {
-    message("Biostatistics toolkit loaded. All optional packages are available.")
-  } else {
-    message(
-      "Biostatistics toolkit loaded. Optional package(s) unavailable: ",
-      paste(missing_packages, collapse = ", "),
-      ". Some enhanced features will be skipped."
+  
+  for (pkg in required_packages) {
+    suppressPackageStartupMessages(
+      library(pkg, character.only = TRUE)
     )
   }
-
-  invisible(missing_packages)
+  
+  message(
+    "Biostatistics packages loaded: ",
+    paste(required_packages, collapse = ", ")
+  )
+  
+  invisible(required_packages)
 }
-
-install_biostats_packages <- function() {
-  load_biostats_packages(install_missing = TRUE)
-}
-
 
 # ---------------------------------------------------------------
 # 2. DATASET INSPECTION

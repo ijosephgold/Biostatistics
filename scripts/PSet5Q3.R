@@ -11,26 +11,30 @@ aphids$Gall <- as.factor(aphids$Gall)
 
 model <- aov(Length ~ Gall, data = aphids)
 
-summary(model)
+anova_table <- summary(model)[[1]]
+anova_table
 
 #because p < 0.05, we reject the null hypothesis and conclude that there is a significant difference in mean thorax size among the different gall groups.
-inspect_df(aphids)
-MS_gall <- 1.7029100529
-MS_within <- 0.0838095238
-n <- 4
+
+MS_gall <- anova_table["Gall", "Mean Sq"]   #1.7029100529
+MS_within <- anova_table["Residuals", "Mean Sq"]   #0.0838095238
+n <- 4 #aphids sampled per gall
 
 variance_gall <- (MS_gall - MS_within) / n
-variance_environment <- MS_within
+variance_within <- MS_within
+total_variance <- variance_gall + variance_within
 
 variance_gall
-variance_environment
+variance_within
+variance_gall / total_variance * 100 #genetic percent for gall
+variance_within / total_variance * 100 #genetic percent for environment
 
 #so (sigma)^2_genetic = 0.4048
 #(sigma)^2_environmental = 0.0838
 
 #(sigma)^2_total = (sigma)^2_genetic + (sigma)^2_environmental
 
-total_variance <- variance_gall + variance_environment
+
 
 genetic_percent <-
   variance_gall / total_variance * 100
@@ -44,3 +48,4 @@ environment_percent
 
 #conclusion: The estimated genetic variance among galls was 0.4048, while the estimated environmental variance within galls was 0.0838. 
 #Thus, approximately 82.8% of the phenotypic variance in aphid thorax length was attributed to differences among genetically distinct aphid colonies, while approximately 17.2% was attributed to environmental or individual-level variation within galls.
+#
