@@ -1,10 +1,12 @@
 #load libraries 
+load_biostats_packages()
 library(tidyverse)
 library(DescTools) #for G test
 library(ggplot2) #for plotting
 
 # CSV import
-data <- read.csv("../data/Foraging data.csv")
+data <- read.csv("data/Foraging data.csv")
+view(data)
 
 #make_contingency_table <- function_ Creates a function named make_contingency_table. Data; dataset containing my observations or summarized counts. count_col; column containing the numerical counts, such as "Count". row_col; categorical variable I want as the table rows, such as "Substrate".col_colThe categorical variable you want as the table columns, such as Behavior.
 make_contingency_table <- function(data, count_col, row_col, col_col) {

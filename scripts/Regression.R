@@ -13,7 +13,7 @@ library(ggplot2)
 #load data
 riffledata <- read.csv("Data/Stream data.csv")
 riffledata
-
+view(riffledata)
 #first fit a linear model
 model1 <- lm(NumberSpp~Biomass, data=riffledata, na.action="na.omit")
 #plot model

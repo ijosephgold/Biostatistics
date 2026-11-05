@@ -10,11 +10,12 @@
 # ---------------------------------------------------------------
 # 1. PACKAGE SETUP
 # ---------------------------------------------------------------
-load_biostats_packages <- function(install_missing = FALSE) {
+load_biostats_packages <- function() {
   
-  required_packages <- c(
+  required_packages <- unique(c(
     "car",
     "ggplot2",
+    "DescTools",
     "dplyr",
     "tidyr",
     "readr",
@@ -23,17 +24,39 @@ load_biostats_packages <- function(install_missing = FALSE) {
     "effectsize",
     "emmeans",
     "performance",
-    "moments",
     "lme4",
+    "nlme",
     "tidyverse",
     "agricolae",
     "vegan",
-    "rstatix",
     "afex",
     "ggpubr",
-    "emmeans"
+    "GGally",
+    "psych"
+  ))
+  
+  # Use a persistent user library for this specific R version
+  r_version <- paste(
+    R.version$major,
+    sub("\\..*", "", R.version$minor),
+    sep = "."
   )
   
+  user_library <- file.path(
+    path.expand("~"),
+    "R",
+    "win-library",
+    r_version
+  )
+  
+  if (!dir.exists(user_library)) {
+    dir.create(user_library, recursive = TRUE, showWarnings = FALSE)
+  }
+  
+  # Make sure this library is the first place R checks
+  .libPaths(unique(c(user_library, .libPaths())))
+  
+  # Identify packages that are genuinely missing
   missing_packages <- required_packages[
     !vapply(
       required_packages,
@@ -43,19 +66,41 @@ load_biostats_packages <- function(install_missing = FALSE) {
     )
   ]
   
+  # Install only missing packages
   if (length(missing_packages) > 0) {
     
-    if (install_missing) {
-      install.packages(missing_packages)
-    } else {
-      stop(
-        "These packages are missing: ",
-        paste(missing_packages, collapse = ", "),
-        "\nRun load_biostats_packages(install_missing = TRUE) once."
-      )
-    }
+    message(
+      "Installing missing package(s): ",
+      paste(missing_packages, collapse = ", ")
+    )
+    
+    install.packages(
+      missing_packages,
+      lib = user_library,
+      repos = "https://cloud.r-project.org",
+      dependencies = TRUE
+    )
   }
   
+  # Verify installation succeeded
+  still_missing <- required_packages[
+    !vapply(
+      required_packages,
+      requireNamespace,
+      logical(1),
+      quietly = TRUE
+    )
+  ]
+  
+  if (length(still_missing) > 0) {
+    stop(
+      "These packages could not be installed: ",
+      paste(still_missing, collapse = ", "),
+      "\nCheck your internet connection, permissions, or R installation."
+    )
+  }
+  
+  # Load all required packages for the current session
   for (pkg in required_packages) {
     suppressPackageStartupMessages(
       library(pkg, character.only = TRUE)
@@ -63,8 +108,7 @@ load_biostats_packages <- function(install_missing = FALSE) {
   }
   
   message(
-    "Biostatistics packages loaded: ",
-    paste(required_packages, collapse = ", ")
+    "Biostatistics packages are installed and loaded."
   )
   
   invisible(required_packages)
@@ -762,6 +806,5 @@ anova_assumption_report <- function(data,
   )
 }
 
-
-# Load optional packages when this master file is sourced.
+# Automatically install missing packages and load all packages
 load_biostats_packages()

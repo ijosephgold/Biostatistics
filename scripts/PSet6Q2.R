@@ -1,29 +1,48 @@
+#clear the environment
+rm(list=ls())
+
+#load libraries
+library(tidyverse)
+library(car)
+library(ggplot2)
+library(GGally)
+library(psych)
+
 edata <- read.csv("data/Environmental data.csv")
 view(edata)
-#{scatterplotMatrix(edata)
-#scatterplot(edata$Elevation, edata$MaxTemp)
-#pearsons_c(edata$Elevation, edata$MaxTemp)
-#pearsons_c(edata$PctCover, edata$Elevation)
-#pearsons_c(edata$PctCover, edata$TPI)
-#pearsons_c(edata$PctCover, edata$TWI)
-#pear}
+str(edata)
 
-vari <- c("PctCover", "Elevation", "TPI", "TWI", "MaxTemp")
-dat <- edata[complete.cases(edata[vari]), vari] #complete.cases(...) checks each row, returns TRUE if it has a value for every selected column, FALSE if anyis missing
+data_subset <-  edata[, c("PctCover", "Elevation", "TPI", "TWI", "MaxTemp")]
 
-scatterplotMatrix(dat)
+#create the scatter plot matrix
+pairs(data_subset, 
+      main = "SPLOM",
+      pch = 20,                                     
+      cex = 1.5,                                    
+      col = "#69b3a2"                               
+)
+ggpairs(data_subset, 
+        title = "")
 
-pairs <- combn(vari, 2, simplify = FALSE)
+#yet another method using pair.panels() from library(psych)
+#this gives histograms and ellipses
+pairs.panels(data_subset,
+             method = "pearson", # Correlation method (e.g., pearson, spearman)
+             hist.col = "#00AFBB", # Color for histograms
+             density = TRUE,      # Add density plots
+             ellipses = TRUE      # Add correlation ellipses
+)
 
-results <- do.call(rbind, lapply(pairs, function(x) {
-  test <- cor.test(dat[[x[1]]], dat[[x[2]]], method = "pearson")
-  data.frame(
-    variable1 = x[1],
-    variable2 = x[2],
-    r = unname(test$estimate),
-    p = test$p.value
-  )
-}))
+#create the individual Pearson's correlation tests
+#notice that the results match those shown above
+cor.test(edata$PctCover, edata$Elevation, method="pearson", na.rm=TRUE)
+cor.test(edata$PctCover, edata$TPI, method="pearson", na.rm=TRUE)
+cor.test(edata$PctCover, edata$TWI, method="pearson", na.rm=TRUE)
+cor.test(edata$PctCover, edata$MaxTemp, method="pearson", na.rm=TRUE)
+cor.test(edata$Elevation, edata$TPI, method="pearson", na.rm=TRUE)
+cor.test(edata$Elevation, edata$TWI, method="pearson", na.rm=TRUE)
+cor.test(edata$Elevation, edata$MaxTemp, method="pearson", na.rm=TRUE) #***
+cor.test(edata$TPI, edata$TWI, method="pearson", na.rm=TRUE)
+cor.test(edata$TPI, edata$MaxTemp, method="pearson", na.rm=TRUE)
+cor.test(edata$TWI, edata$MaxTemp, method="pearson", na.rm=TRUE)
 
-results$p_adjusted <- p.adjust(results$p, method = "holm")
-results

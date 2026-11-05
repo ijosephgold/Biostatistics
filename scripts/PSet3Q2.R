@@ -1,3 +1,4 @@
+load_biostats_packages()
 #Contingency tables
 #Imports Spreadsheet
 data <- read.csv("Data/Ladybird data.csv")
