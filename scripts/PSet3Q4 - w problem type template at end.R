@@ -10,6 +10,7 @@ length(nectar)
 
 #Examine
 summary(nectar)
+inspect_df(nectar)
 
 #create histogram 
 par(mfrow = c(1, 2))

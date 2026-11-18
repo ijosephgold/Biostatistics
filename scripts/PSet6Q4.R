@@ -4,7 +4,9 @@ view(data)
 
 #first fit a linear model
 datalin <- lm(RatDnsty ~ ShrbCvr + SeedPrd + SnkDnsty, data=data, na.action="na.omit")
-mfdatalin <- modeel.frame(datalin)
+mfdatalin <- model.frame(datalin)
+
+datalinres <- resid(datalin)
 #termplot(datalin, se = TRUE, partial.resid = FALSE)
 #plot model
 plot(RatDnsty ~ ShrbCvr, data = data,
@@ -26,15 +28,15 @@ datalinres <- residuals(datalin)
 #check the assumptions
 #recall, we want to look at the residuals
 #first test normality
-model1res <- resid(model1)
-qqp(model1res, "norm")
-hist(model1res)
-shapiro.test(model1res) #P < 0.05. It's a bit non-normal
+#model1res <- resid(model1)
+#qqp(model1res, "norm")
+#hist(model1res)
+#shapiro.test(model1res) #P < 0.05. It's a bit non-normal
 #test for homogeneity of variance
 #call the fitted y values
-fitted(model1) #this is the predicted value of y, for each value of x
+#fitted(model1) #this is the predicted value of y, for each value of x
 #plot the fitted (predicted) values against the residuals
-plot(model1res~fitted(model1), ylab = "Residuals", xlab = "Predicted y") #it looks a bit cone shaped
+#plot(model1res~fitted(model1), ylab = "Residuals", xlab = "Predicted y") #it looks a bit cone shaped
 
 
 shrub_model <- lm(RatDnsty ~ ShrbCvr, data = data)
@@ -83,7 +85,7 @@ ggplot(data, aes(x = SnkDnsty, y = RatDnsty)) +
   labs(x = "Snake density", y = "Rat density")
 
 
-plot(datalinres ~ data$ShrbCvr, xlab = "Shrub cover", ylab = "Residuals")
+#plot(datalinres ~ data$ShrbCvr, xlab = "Shrub cover", ylab = "Residuals")
 
 
 #try a log transformation

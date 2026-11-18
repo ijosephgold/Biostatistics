@@ -1,5 +1,5 @@
 # Import CSV file
-protein_data <- read.csv("../Data/Protein data.csv")
+protein_data <- read.csv("data/Protein data.csv")
 #view data
 protein_data
 # Inspect the data
@@ -24,6 +24,7 @@ hist(
   border = "white" 
   )
 
+qqPlot(protein_data$Concentration, ylab = "Protein Concentration (mg protein/mg tissue)", main = "Q-Q Plot of Protein Concentration")
 qqnorm(protein_data$Concentration)
 qqline(protein_data$Concentration, col = "red", lwd = 2)
 
@@ -75,3 +76,4 @@ legend(
   lty = c(2, 3), 
   lwd = 2 
   )
+view(protein_data)
