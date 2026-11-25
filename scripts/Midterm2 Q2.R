@@ -19,3 +19,4 @@ ggplot(graphdata, aes(x=treatment, y=meanbiomass)) +
   geom_bar(stat="identity", color="dodgerblue2", fill="dodgerblue2", position="dodge", size=0.6) +
   labs(x="treatment", y="Biomass", size = 1) +
   geom_errorbar(aes(ymax=meanbiomass+se, ymin=meanbiomass-se), position=position_dodge(0.9), width=0.1) 
+

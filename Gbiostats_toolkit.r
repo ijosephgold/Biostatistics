@@ -80,6 +80,84 @@
   }
 }
 
+# ------------------------------------------------------------------------------
+# 0.1. SKEWNESS, KURTOSIS, R/R2 INTERPRETATION & PROFESSOR-STYLE QQ HELPERS
+# ------------------------------------------------------------------------------
+.calc_skew_kurt <- function(x) {
+  xc <- na.omit(as.numeric(x))
+  if (length(xc) < 3 || sd(xc) == 0) {
+    return(list(skew = NA, kurt = NA, skew_note = "Insufficient variation", kurt_note = "Insufficient variation"))
+  }
+  if (.has_pkg("moments")) {
+    sk <- moments::skewness(xc)
+    ku <- moments::kurtosis(xc)
+  } else {
+    n <- length(xc)
+    m <- mean(xc)
+    s <- sqrt(mean((xc - m)^2))
+    sk <- mean(((xc - m) / s)^3)
+    ku <- mean(((xc - m) / s)^4)
+  }
+
+  # Plain-English Skewness interpretation (0 = perfectly symmetric)
+  skew_note <- if (abs(sk) < 0.5) {
+    "Approximately symmetric (close to 0 -> good for normality)"
+  } else if (abs(sk) < 1.0) {
+    ifelse(sk > 0, "Moderately RIGHT-skewed (tail stretches high; consider sqrt/log if Shapiro fails)",
+                   "Moderately LEFT-skewed (tail stretches low)")
+  } else {
+    ifelse(sk > 0, "Highly RIGHT-skewed (|skew| >= 1 -> strong candidate for log10/sqrt transform)",
+                   "Highly LEFT-skewed (|skew| >= 1 -> strong departure from normality)")
+  }
+
+  # Plain-English Pearson Kurtosis interpretation (Normal distribution = 3.0)
+  kurt_note <- if (ku >= 2.5 && ku <= 3.5) {
+    "Mesokurtic (near 3.0 -> normal-like tail weight & peak)"
+  } else if (ku > 3.5) {
+    "Leptokurtic (> 3.5 -> sharper peak / heavier tails & potential outliers)"
+  } else {
+    "Platykurtic (< 2.5 -> flatter peak / lighter tails than normal)"
+  }
+
+  list(skew = sk, kurt = ku, skew_note = skew_note, kurt_note = kurt_note)
+}
+
+.interpret_r <- function(r_val) {
+  ar <- abs(r_val)
+  dir_str <- ifelse(r_val > 0, "positive", ifelse(r_val < 0, "negative", "zero"))
+  mag_str <- if (ar < 0.1) "negligible" else if (ar < 0.3) "weak" else if (ar < 0.5) "moderate" else if (ar < 0.7) "moderately strong" else "strong"
+  sprintf("%s %s linear association", tools::toTitleCase(mag_str), dir_str)
+}
+
+.plot_prof_qq <- function(x, main_title = "Normal Q-Q Plot", ylab_str = "Residuals") {
+  xc <- na.omit(as.numeric(x))
+  if (.has_pkg("car")) {
+    # Exact professor-style car::qqPlot with red center line + shaded 95% confidence envelope!
+    tryCatch(
+      car::qqPlot(xc, main = main_title, ylab = ylab_str, col.lines = "firebrick",
+                  envelope = list(style = "filled", col = "gray65", alpha = 0.28), pch = 19),
+      error = function(e) {
+        car::qqPlot(xc, main = main_title, ylab = ylab_str, col.lines = "firebrick", pch = 19)
+      }
+    )
+  } else {
+    qqnorm(xc, main = main_title, ylab = ylab_str, pch = 19, col = "steelblue")
+    qqline(xc, col = "firebrick", lwd = 2)
+  }
+}
+
+.plot_hist_normal <- function(x, main_title = "Histogram vs. Normal Curve", xlab_str = "Values") {
+  xc <- na.omit(as.numeric(x))
+  h <- hist(xc, freq = FALSE, col = "lightblue", border = "white",
+            main = main_title, xlab = xlab_str)
+  if (length(xc) >= 3 && sd(xc) > 0) {
+    curve(dnorm(x, mean = mean(xc), sd = sd(xc)), add = TRUE, col = "firebrick", lwd = 2.2)
+    legend("topright", legend = "Normal Curve", col = "firebrick", lwd = 2.2, bty = "n", cex = 0.85)
+  }
+  invisible(h)
+}
+
+
 
 # ------------------------------------------------------------------------------
 # 0A. NATURAL LANGUAGE QUESTION & DERIVED VARIABLE ENGINE (.parse_question_and_derived)
@@ -1145,14 +1223,22 @@ biostat_transform <- function(df, response = NULL, predictor = NULL, paired = NU
 # 3. SELF-CHECKING ENGINE 1: COPY-PASTEABLE EQUIVALENT R CODE (`biostat_code`)
 # ------------------------------------------------------------------------------
 biostat_code <- function(df = NULL, response = NULL, predictor = NULL, paired = NULL,
-                         model = "auto", random = NULL, transform = "auto") {
+                         model = "auto", random = NULL, transform = "auto", df_name = NULL, silent = FALSE) {
   if (is.null(df)) {
     if (exists("last_code", envir = .biostat_last_audit)) {
       cat(.biostat_last_audit$last_code)
       return(invisible(.biostat_last_audit$last_code))
     } else {
-      stop("Pass your dataset `biostat_code(data)` (or run `biostat_wizard(data)` first).")
+      stop("Pass your dataset `biostat_code(my_data)` (or run `biostat_wizard(my_data)` first).")
     }
+  }
+
+  # Auto-capture the user's REAL dataframe name (e.g., `pen_data` instead of generic `data`)!
+  if (is.null(df_name)) {
+    df_name <- paste(deparse(substitute(df)), collapse = "")
+  }
+  if (!nzchar(df_name) || df_name %in% c("df", "df_use", "parsed$df", "sub_df") || grepl("\\(|\\$|\\[", df_name)) {
+    df_name <- "data"
   }
 
   inf <- biostat_infer(df, response = response, predictors = predictor,
@@ -1162,18 +1248,17 @@ biostat_code <- function(df = NULL, response = NULL, predictor = NULL, paired = 
   y_col     <- parsed$response
   x_cols    <- parsed$predictor
 
-  # Check if a transformation is recommended for this dataset
   tr_info <- tryCatch(biostat_transform(df, response = y_col, predictor = x_cols,
                                         paired = parsed$paired, plot = FALSE, verbose = FALSE),
                       error = function(e) NULL)
 
   lines <- c(
     "======================================================================",
-    "   EQUIVALENT STANDALONE R CODE (COPY & PASTE TO CHECK YOUR WORK!)    ",
+    sprintf("   EQUIVALENT STANDALONE R CODE FOR `%s` (COPY & PASTE TO VERIFY!)   ", df_name),
     "======================================================================"
   )
 
-  # Add transformation verification block whenever a transformation improves or rescues assumptions!
+  # Optional Data Transformation Rescue Block
   if (!is.null(tr_info) && !isTRUE(tr_info$raw_ok) && tr_info$best_code != "none") {
     lines <- c(lines,
       sprintf("# 0. Optional Data Transformation Rescue (Fixes Skewness / Unequal Variance!)"),
@@ -1181,63 +1266,115 @@ biostat_code <- function(df = NULL, response = NULL, predictor = NULL, paired = 
               tr_info$best_name, tr_info$best_ev$sw_w, tr_info$best_ev$sw_p),
       sprintf("#    To run the analysis below on transformed data, uncomment the next line:"),
       if (tr_info$best_code == "log_xy") {
-        sprintf("# data$%s <- log10(data$%s); data$%s <- log10(data$%s)",
-                .sym_q(y_col), .sym_q(y_col), .sym_q(x_cols[1]), .sym_q(x_cols[1]))
+        sprintf("# %s$%s <- log10(%s$%s); %s$%s <- log10(%s$%s)",
+                df_name, .sym_q(y_col), df_name, .sym_q(y_col),
+                df_name, .sym_q(x_cols[1]), df_name, .sym_q(x_cols[1]))
       } else {
-        sprintf("# data$%s <- %s", .sym_q(y_col), gsub("^`?([^`]+)`?", "data$\\1", tr_info$r_expr))
+        sprintf("# %s$%s <- %s", df_name, .sym_q(y_col),
+                gsub("^`?([^`]+)`?", paste0(df_name, "$\\1"), tr_info$r_expr))
       },
       ""
     )
   }
 
+  # ----------------------------------------------------------------------------
+  # CASE 1: BINARY LOGISTIC REGRESSION
+  # ----------------------------------------------------------------------------
   if (prob_type == "logistic") {
     x_col <- x_cols[1]
     yq <- .sym_q(y_col); xq <- .sym_q(x_col)
     lines <- c(lines,
       sprintf("# 1. Fit Binary Logistic Regression GLM (Binomial family, logit link)"),
-      sprintf("mod <- glm(%s ~ %s, data = data, family = binomial)", yq, xq),
-      sprintf("summary(mod)                                # Check Wald z-value and p-value (Pr(>|z|))"),
+      sprintf("mod <- glm(%s ~ %s, data = %s, family = binomial)", yq, xq, df_name),
+      sprintf("summary(mod)                                  # Wald z-value and p-value (Pr(>|z|))"),
       sprintf(""),
-      sprintf("# 2. Calculate Numeric Factor by which 1-unit increase in X increases Odds"),
-      sprintf("exp(coef(mod))                              # exp(b1) = Odds Ratio multiplier"),
-      sprintf("exp(confint(mod))                           # 95%% Confidence Interval for Odds Ratio"),
+      sprintf("# 2. Numeric Factor by which +1 unit of X multiplies Odds of Success"),
+      sprintf("exp(coef(mod))                                # exp(b1) = Odds Ratio multiplier"),
+      sprintf("exp(confint(mod))                             # 95%% Confidence Interval for Odds Ratio"),
       sprintf(""),
-      sprintf("# 3. Assess Strength of Association (McFadden's Pseudo-R2 & LRT Chi-Sq)"),
-      sprintf("1 - (mod$deviance / mod$null.deviance)      # McFadden's Pseudo-R2 (proportion deviance explained)"),
-      sprintf("anova(mod, test = 'Chisq')                  # Likelihood Ratio Test (Drop-in-Deviance G2)"),
+      sprintf("# 3. Strength of Association (McFadden's Pseudo-R2 & LRT Chi-Sq)"),
+      sprintf("1 - (mod$deviance / mod$null.deviance)        # McFadden's Pseudo-R2 (prop. deviance explained)"),
+      sprintf("anova(mod, test = 'Chisq')                    # Likelihood Ratio Test (Drop-in-Deviance G2)"),
       sprintf(""),
-      sprintf("# 4. Plot Logistic Regression Curve with Raw Points"),
+      sprintf("# 4. PRIMARY FINAL GRAPH: Sigmoidal Logistic Probability Curve (With Jitter)"),
+      sprintf("#    WHY THIS GRAPH: Shows how the predicted probability smoothly transitions from 0 to 1."),
+      sprintf("#    NOTE ON JITTER: `height = 0.03` nudges dots slightly above 1 / below 0 ONLY so"),
+      sprintf("#                    overlapping 0s and 1s don't hide; actual data & GLM are strictly 0 and 1!"),
       sprintf("library(ggplot2)"),
-      sprintf("ggplot(data, aes(x = %s, y = %s)) +", xq, yq),
-      sprintf("  geom_jitter(height = 0.03, width = 0, alpha = 0.6) +"),
-      sprintf("  stat_smooth(method = 'glm', method.args = list(family = 'binomial'), se = TRUE, color = 'red') +"),
-      sprintf("  theme_classic()")
+      sprintf("ggplot(%s, aes(x = %s, y = %s)) +", df_name, xq, yq),
+      sprintf("  geom_jitter(height = 0.03, width = 0, alpha = 0.65, size = 2.5, color = 'steelblue4') +"),
+      sprintf("  stat_smooth(method = 'glm', method.args = list(family = 'binomial'),"),
+      sprintf("              se = TRUE, color = 'firebrick', fill = 'pink', alpha = 0.3, linewidth = 1.1) +"),
+      sprintf("  scale_y_continuous(breaks = seq(0, 1, 0.2), limits = c(-0.05, 1.05)) +"),
+      sprintf("  labs(title = 'Logistic Regression: %s vs. %s',", y_col, x_col),
+      sprintf("       x = '%s', y = 'Probability of %s (1 = Success)') +", x_col, y_col),
+      sprintf("  theme_minimal(base_size = 13)"),
+      sprintf(""),
+      sprintf("# 5. ALTERNATIVE CLEAN GRAPH: Zero Vertical Jitter (Dots Sit Strictly Flat on 0 and 1)"),
+      sprintf("#    WHY: Uses semi-transparency (`alpha = 0.45`) instead of jitter so stacked points look darker."),
+      sprintf("ggplot(%s, aes(x = %s, y = %s)) +", df_name, xq, yq),
+      sprintf("  geom_point(alpha = 0.45, size = 2.8, color = 'steelblue4') +"),
+      sprintf("  stat_smooth(method = 'glm', method.args = list(family = 'binomial'),"),
+      sprintf("              se = TRUE, color = 'firebrick', fill = 'pink', alpha = 0.3) +"),
+      sprintf("  labs(title = 'Logistic Regression (No Jitter): %s vs. %s',", y_col, x_col),
+      sprintf("       x = '%s', y = 'Probability of %s') +", x_col, y_col),
+      sprintf("  theme_classic(base_size = 13)")
     )
 
+  # ----------------------------------------------------------------------------
+  # CASE 2: TWO-WAY MODEL I FACTORIAL ANOVA
+  # ----------------------------------------------------------------------------
   } else if (prob_type == "factorial_anova") {
     f1 <- .sym_q(x_cols[1]); f2 <- .sym_q(x_cols[2]); yq <- .sym_q(y_col)
     lines <- c(lines,
       sprintf("# 1. Fit Full Two-Way Factorial Model I ANOVA (WITH Interaction Term First!)"),
-      sprintf("mod_int <- lm(%s ~ %s * %s, data = data)", yq, f1, f2),
-      sprintf("shapiro.test(residuals(mod_int))            # Check normality of residuals"),
-      sprintf("anova(mod_int)                              # Read the '%s:%s' interaction row FIRST!", x_cols[1], x_cols[2]),
+      sprintf("mod_int <- lm(%s ~ %s * %s, data = %s)", yq, f1, f2, df_name),
+      sprintf("shapiro.test(residuals(mod_int))              # Formal normality test on residuals"),
+      sprintf("anova(mod_int)                                # Read '%s:%s' interaction row FIRST!", x_cols[1], x_cols[2]),
       sprintf(""),
-      sprintf("# 2A. IF INTERACTION IS NOT SIGNIFICANT (p >= 0.05): Drop interaction & test Main Effects"),
-      sprintf("mod_add <- lm(%s ~ %s + %s, data = data)    # Additive model (holds other factor constant)", yq, f1, f2),
-      sprintf("anova(mod_add)                              # Report main effect F and p-values from here!"),
+      sprintf("# 2. ASSUMPTION GRAPHS: Normal Q-Q Plot & Residuals vs. Fitted (Wedge-Shape Check)"),
+      sprintf("#    WHY: Confirms residuals are normally distributed (dots on line) & equal variance (no funnel)."),
+      sprintf("library(car)"),
+      sprintf("par(mfrow = c(1, 3))"),
+      sprintf("res <- residuals(mod_int); hist(res, freq = FALSE, col = 'lightblue', border = 'white', main = 'Histogram vs Normal'); curve(dnorm(x, mean(res), sd(res)), add = TRUE, col = 'firebrick', lwd = 2)"),
+      sprintf("qqPlot(res, col.lines = 'firebrick', main = 'QQ Plot w/ 95%% Envelope') # Dots inside shaded gray/blue band = Normal!"),
+      sprintf("plot(res ~ fitted(mod_int), pch = 19, xlab = 'Fitted Values', ylab = 'Residuals', main = 'Residuals vs Fitted'); abline(h = 0, lty = 2, col = 'red')"),
+      sprintf("par(mfrow = c(1, 1))"),
       sprintf(""),
-      sprintf("# 2B. IF INTERACTION IS SIGNIFICANT (p < 0.05): Do NOT read main effects above; run t-tests"),
-      sprintf("t.test(%s ~ %s, data = data)                # Separate two-sample t-test for %s", yq, f1, x_cols[1]),
-      sprintf("t.test(%s ~ %s, data = data)                # Separate two-sample t-test for %s", yq, f2, x_cols[2]),
+      sprintf("# 3A. IF INTERACTION IS NOT SIGNIFICANT (p >= 0.05): Drop interaction & test Main Effects"),
+      sprintf("mod_add <- lm(%s ~ %s + %s, data = %s)        # Additive model (holds other factor constant)", yq, f1, f2, df_name),
+      sprintf("anova(mod_add)                                # Report main effect F and p-values from here!"),
       sprintf(""),
-      sprintf("# 3. Plot Grouped Barplot of Means +/- SEM"),
+      sprintf("# 3B. IF INTERACTION IS SIGNIFICANT (p < 0.05): Do NOT read main effects above; run t-tests"),
+      sprintf("bartlett.test(%s ~ %s, data = %s)             # Check equal variance for %s", yq, f1, df_name, x_cols[1]),
+      sprintf("t.test(%s ~ %s, data = %s)                    # Separate two-sample t-test for %s", yq, f1, df_name, x_cols[1]),
+      sprintf("bartlett.test(%s ~ %s, data = %s)             # Check equal variance for %s", yq, f2, df_name, x_cols[2]),
+      sprintf("t.test(%s ~ %s, data = %s)                    # Separate two-sample t-test for %s", yq, f2, df_name, x_cols[2]),
+      sprintf(""),
+      sprintf("# 4. PRIMARY FINAL GRAPH: Grouped Barplot of Means +/- SEM (CSUN Course Standard)"),
+      sprintf("#    WHY: Standard biology format to compare group averages and precision (SEM) across 2 factors."),
       sprintf("library(ggplot2)"),
-      sprintf("ggplot(data, aes(x = factor(%s), y = %s, fill = factor(%s))) +", f1, yq, f2),
-      sprintf("  stat_summary(fun = mean, geom = 'bar', position = position_dodge(0.8), width = 0.7, color = 'black') +"),
-      sprintf("  stat_summary(fun.data = mean_se, geom = 'errorbar', position = position_dodge(0.8), width = 0.2) +"),
-      sprintf("  theme_classic()")
+      sprintf("ggplot(%s, aes(x = factor(%s), y = %s, fill = factor(%s))) +", df_name, f1, yq, f2),
+      sprintf("  stat_summary(fun = mean, geom = 'bar', position = position_dodge(0.75), width = 0.68, color = 'black', alpha = 0.85) +"),
+      sprintf("  stat_summary(fun.data = mean_se, geom = 'errorbar', position = position_dodge(0.75), width = 0.22, linewidth = 0.75) +"),
+      sprintf("  labs(title = '%s by %s and %s (Mean +/- SEM)', x = '%s', y = '%s (Mean +/- SEM)', fill = '%s') +",
+              y_col, x_cols[1], x_cols[2], x_cols[1], y_col, x_cols[2]),
+      sprintf("  theme_classic(base_size = 13)"),
+      sprintf(""),
+      sprintf("# 5. ALTERNATIVE GRAPH: Interaction Profile Plot (Best for Visually Spotting Interactions!)"),
+      sprintf("#    WHY: Parallel lines = NO interaction; Crossing or diverging lines = SIGNIFICANT interaction!"),
+      sprintf("ggplot(%s, aes(x = factor(%s), y = %s, color = factor(%s), group = factor(%s))) +", df_name, f1, yq, f2, f2),
+      sprintf("  stat_summary(fun = mean, geom = 'point', size = 3.5) +"),
+      sprintf("  stat_summary(fun = mean, geom = 'line', linewidth = 1.1) +"),
+      sprintf("  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.12) +"),
+      sprintf("  labs(title = 'Interaction Plot: %s by %s & %s', x = '%s', y = '%s (Mean +/- SEM)', color = '%s') +",
+              y_col, x_cols[1], x_cols[2], x_cols[1], y_col, x_cols[2]),
+      sprintf("  theme_classic(base_size = 13)")
     )
 
+  # ----------------------------------------------------------------------------
+  # CASE 3: MODEL III MIXED-EFFECTS FACTORIAL ANOVA
+  # ----------------------------------------------------------------------------
   } else if (prob_type == "model3_anova") {
     r_col <- if (!is.null(parsed$random)) parsed$random else x_cols[2]
     f_col <- setdiff(x_cols, r_col)[1]
@@ -1245,140 +1382,329 @@ biostat_code <- function(df = NULL, response = NULL, predictor = NULL, paired = 
     lines <- c(lines,
       sprintf("# 1. Load lme4 and Fit Full Mixed Model (WITH Random Interaction) vs Reduced Model"),
       sprintf("library(lme4)"),
-      sprintf("mod_full   <- lmer(%s ~ %s + (1|%s) + (1|%s:%s), data = data, REML = FALSE)", yq, fq, rq, fq, rq),
-      sprintf("mod_no_int <- lmer(%s ~ %s + (1|%s), data = data, REML = FALSE)", yq, fq, rq),
+      sprintf("mod_full   <- lmer(%s ~ %s + (1|%s) + (1|%s:%s), data = %s, REML = FALSE)", yq, fq, rq, fq, rq, df_name),
+      sprintf("mod_no_int <- lmer(%s ~ %s + (1|%s), data = %s, REML = FALSE)", yq, fq, rq, df_name),
       sprintf(""),
-      sprintf("# 2. Run Log-Likelihood Ratio Test (LLRT Chi-Square) for the Interaction Term"),
-      sprintf("anova(mod_no_int, mod_full)                 # Check Chisq and Pr(>Chisq) for interaction!"),
+      sprintf("# 2. Log-Likelihood Ratio Test (LLRT Chi-Square) for the Random Interaction Term"),
+      sprintf("anova(mod_no_int, mod_full)                   # Check Chisq and Pr(>Chisq) for interaction!"),
       sprintf(""),
       sprintf("# 3. If Interaction is Significant: Test Fixed Effect in Model w/ Random Effect & NO Interaction"),
-      sprintf("mod_null   <- lmer(%s ~ 1 + (1|%s), data = data, REML = FALSE)", yq, rq),
-      sprintf("anova(mod_null, mod_no_int)                 # LLRT for Fixed Effect ('%s')", f_col),
-      sprintf("anova(lmer(%s ~ %s + (1|%s), data = data))  # F-table for Fixed Effect ('%s')", yq, fq, rq, f_col),
+      sprintf("mod_null   <- lmer(%s ~ 1 + (1|%s), data = %s, REML = FALSE)", yq, rq, df_name),
+      sprintf("anova(mod_null, mod_no_int)                   # LLRT for Fixed Effect ('%s')", f_col),
+      sprintf("anova(lmer(%s ~ %s + (1|%s), data = %s))      # F-table for Fixed Effect ('%s')", yq, fq, rq, df_name, f_col),
       sprintf(""),
-      sprintf("# 4. Classical Two-Way ANOVA Table (for F-ratio reference)"),
-      sprintf("anova(lm(%s ~ %s * %s, data = data))", yq, fq, rq)
+      sprintf("# 4. PRIMARY FINAL GRAPH: Grouped Barplot of Means +/- SEM (Fixed Factor on X, Random as Fill)"),
+      sprintf("#    WHY: Illustrates how the Fixed effect varies across levels of the Random factor."),
+      sprintf("library(ggplot2)"),
+      sprintf("ggplot(%s, aes(x = factor(%s), y = %s, fill = factor(%s))) +", df_name, fq, yq, rq),
+      sprintf("  stat_summary(fun = mean, geom = 'bar', position = position_dodge(0.75), width = 0.68, color = 'black', alpha = 0.85) +"),
+      sprintf("  stat_summary(fun.data = mean_se, geom = 'errorbar', position = position_dodge(0.75), width = 0.22, linewidth = 0.75) +"),
+      sprintf("  labs(title = 'Model III ANOVA: %s by %s & %s (Mean +/- SEM)', x = '%s', y = '%s (Mean +/- SEM)', fill = '%s') +",
+              y_col, f_col, r_col, f_col, y_col, r_col),
+      sprintf("  theme_classic(base_size = 13)")
     )
 
+  # ----------------------------------------------------------------------------
+  # CASE 4: ANCOVA
+  # ----------------------------------------------------------------------------
   } else if (prob_type == "ancova") {
     cov_col <- x_cols[1]; grp_col <- x_cols[2]
     cq <- .sym_q(cov_col); gq <- .sym_q(grp_col); yq <- .sym_q(y_col)
     lvls <- levels(as.factor(parsed$df[[grp_col]]))
     lines <- c(lines,
       sprintf("# 1. Fit Full ANCOVA Model with Interaction (Tests Homogeneity of Slopes)"),
-      sprintf("mod_int <- lm(%s ~ %s * %s, data = data)", yq, cq, gq),
-      sprintf("shapiro.test(residuals(mod_int))            # Check normality of residuals"),
-      sprintf("anova(mod_int)                              # Read '%s:%s' interaction row FIRST!", cov_col, grp_col),
+      sprintf("mod_int <- lm(%s ~ %s * %s, data = %s)", yq, cq, gq, df_name),
+      sprintf("shapiro.test(residuals(mod_int))              # Check normality of residuals"),
+      sprintf("anova(mod_int)                                # Read '%s:%s' interaction row FIRST!", cov_col, grp_col),
       sprintf(""),
-      sprintf("# 2A. IF INTERACTION IS SIGNIFICANT (p < 0.05): Stop & run separate regressions per group!"),
-      sprintf("anova(lm(%s ~ %s, data = subset(data, %s == '%s')))  # Regression for %s", yq, cq, gq, lvls[1], lvls[1]),
-      sprintf("anova(lm(%s ~ %s, data = subset(data, %s == '%s')))  # Regression for %s", yq, cq, gq, lvls[min(2, length(lvls))], lvls[min(2, length(lvls))]),
+      sprintf("# 2. ASSUMPTION GRAPHS: Normal Q-Q Plot & Residuals vs. Fitted (Check for Wedge Shape)"),
+      sprintf("library(car)"),
+      sprintf("par(mfrow = c(1, 3))"),
+      sprintf("res <- residuals(mod_int); hist(res, freq = FALSE, col = 'lightblue', border = 'white', main = 'Histogram vs Normal'); curve(dnorm(x, mean(res), sd(res)), add = TRUE, col = 'firebrick', lwd = 2)"),
+      sprintf("qqPlot(res, col.lines = 'firebrick', main = 'QQ Plot w/ 95%% Envelope') # Dots inside shaded gray/blue band = Normal!"),
+      sprintf("plot(res ~ fitted(mod_int), pch = 19, xlab = 'Fitted Values', ylab = 'Residuals', main = 'Residuals vs Fitted'); abline(h = 0, lty = 2, col = 'red')"),
+      sprintf("par(mfrow = c(1, 1))"),
       sprintf(""),
-      sprintf("# 2B. IF INTERACTION IS NOT SIGNIFICANT (p >= 0.05): Drop interaction & compare line heights!"),
-      sprintf("mod_add <- lm(%s ~ %s + %s, data = data)    # Parallel lines ANCOVA", yq, cq, gq),
-      sprintf("anova(mod_add)                              # Row 1 = Slope (%s), Row 2 = Line Height (%s)", cov_col, grp_col),
+      sprintf("# 3A. IF INTERACTION IS SIGNIFICANT (p < 0.05): Stop & run separate regressions per group!"),
+      sprintf("anova(lm(%s ~ %s, data = subset(%s, %s == '%s')))  # Regression for %s", yq, cq, df_name, gq, lvls[1], lvls[1]),
+      sprintf("anova(lm(%s ~ %s, data = subset(%s, %s == '%s')))  # Regression for %s", yq, cq, df_name, gq, lvls[min(2, length(lvls))], lvls[min(2, length(lvls))]),
       sprintf(""),
-      sprintf("# 3. Scatterplot with Separate Trendlines by Group"),
+      sprintf("# 3B. IF INTERACTION IS NOT SIGNIFICANT (p >= 0.05): Drop interaction & compare line heights!"),
+      sprintf("mod_add <- lm(%s ~ %s + %s, data = %s)        # Parallel lines ANCOVA", yq, cq, gq, df_name),
+      sprintf("anova(mod_add)                                # Row 1 = Slope (%s), Row 2 = Line Height (%s)", cov_col, grp_col),
+      sprintf(""),
+      sprintf("# 4. PRIMARY FINAL GRAPH: Scatterplot with Separate Trendlines by Group"),
+      sprintf("#    WHY: Directly visualizes whether the two groups have different slopes (interaction) or"),
+      sprintf("#         parallel slopes with different heights (main effect of grouping variable)."),
       sprintf("library(ggplot2)"),
-      sprintf("ggplot(data, aes(x = %s, y = %s, color = %s)) +", cq, yq, gq),
-      sprintf("  geom_point(size = 2.5) + geom_smooth(method = 'lm', se = FALSE) + theme_classic()")
+      sprintf("ggplot(%s, aes(x = %s, y = %s, color = factor(%s))) +", df_name, cq, yq, gq),
+      sprintf("  geom_point(size = 2.6, alpha = 0.8) +       # Raw observations colored by group (no jitter needed)"),
+      sprintf("  geom_smooth(method = 'lm', se = FALSE, linewidth = 1.1) + # Separate OLS regression line per group"),
+      sprintf("  labs(title = 'ANCOVA: %s vs. %s by %s', x = '%s', y = '%s', color = '%s') +",
+              y_col, cov_col, grp_col, cov_col, y_col, grp_col),
+      sprintf("  theme_classic(base_size = 13)")
     )
 
+  # ----------------------------------------------------------------------------
+  # CASE 5: MULTIPLE LINEAR REGRESSION & AIC
+  # ----------------------------------------------------------------------------
   } else if (prob_type == "multiple_regression") {
     yq <- .sym_q(y_col)
     x_str <- paste(sapply(x_cols, .sym_q), collapse = " + ")
     lines <- c(lines,
       sprintf("# 1. Check Predictor Collinearity (Correlation Matrix & Scatterplot Matrix / SPLOM)"),
-      sprintf("cor(data[, c(%s)], use = 'complete.obs')    # Check if predictors correlate strongly (|r| > 0.7)",
-              paste0("'", x_cols, "'", collapse = ", ")),
-      sprintf("pairs(data)                                 # Visual Scatterplot Matrix (SPLOM)"),
+      sprintf("#    WHY THIS GRAPH: A SPLOM (`pairs`) reveals if predictors are strongly correlated (|r| > 0.7)"),
+      sprintf("#                    with each other, which inflates variance and masks true effects."),
+      sprintf("cor(%s[, c(%s)], use = 'complete.obs')", df_name, paste0("'", x_cols, "'", collapse = ", ")),
+      sprintf("pairs(%s[, c('%s', %s)], main = 'Scatterplot Matrix (SPLOM)')",
+              df_name, y_col, paste0("'", x_cols, "'", collapse = ", ")),
       sprintf(""),
       sprintf("# 2. Fit Full Additive Multiple Regression Model (No Interaction Terms)"),
-      sprintf("mod_full <- lm(%s ~ %s, data = data)", yq, x_str),
-      sprintf("shapiro.test(residuals(mod_full))           # Check residual normality"),
-      sprintf("anova(mod_full)                             # Sequential ANOVA table"),
-      sprintf("summary(mod_full)                           # Partial slopes, t-tests, R2, and Adjusted R2"),
+      sprintf("mod_full <- lm(%s ~ %s, data = %s)", yq, x_str, df_name),
+      sprintf("shapiro.test(residuals(mod_full))             # Check residual normality"),
+      sprintf("anova(mod_full)                               # Sequential ANOVA table"),
+      sprintf("summary(mod_full)                             # Partial slopes, t-tests, R2, and Adjusted R2"),
       sprintf(""),
-      sprintf("# 3. Compare Candidate Reduced Models Using Akaike's Information Criterion (AIC)"),
-      sprintf("AIC(mod_full)                               # Smaller (more negative / lower) AIC = BETTER fit!")
+      sprintf("# 3. ASSUMPTION GRAPHS: Normal Q-Q Plot & Residuals vs. Fitted Values"),
+      sprintf("library(car)"),
+      sprintf("par(mfrow = c(1, 3))"),
+      sprintf("res <- residuals(mod_full); hist(res, freq = FALSE, col = 'lightblue', border = 'white', main = 'Histogram vs Normal'); curve(dnorm(x, mean(res), sd(res)), add = TRUE, col = 'firebrick', lwd = 2)"),
+      sprintf("qqPlot(res, col.lines = 'firebrick', main = 'QQ Plot w/ 95%% Envelope') # Dots inside shaded gray/blue band = Normal!"),
+      sprintf("plot(res ~ fitted(mod_full), pch = 19, xlab = 'Fitted Values', ylab = 'Residuals', main = 'Residuals vs Fitted'); abline(h = 0, lty = 2, col = 'red')"),
+      sprintf("par(mfrow = c(1, 1))"),
+      sprintf(""),
+      sprintf("# 4. Compare Candidate Reduced Models Using Akaike's Information Criterion (AIC)"),
+      sprintf("AIC(mod_full)                                 # Smaller (lower) AIC = BETTER parsimonious fit!")
     )
     for (xc in x_cols) {
-      lines <- c(lines, sprintf("AIC(lm(%s ~ %s, data = data))               # Single-predictor model: %s only", yq, .sym_q(xc), xc))
+      lines <- c(lines, sprintf("AIC(lm(%s ~ %s, data = %s))                   # Single-predictor model: %s only", yq, .sym_q(xc), df_name, xc))
     }
 
+  # ----------------------------------------------------------------------------
+  # CASE 6: PAIRED TWO-SAMPLE COMPARISON
+  # ----------------------------------------------------------------------------
   } else if (prob_type == "paired_2group") {
     if (parsed$wide_paired) {
       c1 <- .sym_q(parsed$orig_cols[1]); c2 <- .sym_q(parsed$orig_cols[2])
       lines <- c(lines,
         sprintf("# 1. Compute Paired Differences & Check Normality (Required for Paired Design!)"),
-        sprintf("diffs <- data$%s - data$%s", c1, c2),
-        sprintf("shapiro.test(diffs)                         # p >= 0.05 -> Paired t-test; p < 0.05 -> Try log/sqrt or Wilcoxon"),
+        sprintf("diffs <- %s$%s - %s$%s", df_name, c1, df_name, c2),
+        sprintf("shapiro.test(diffs)                           # p >= 0.05 -> Paired t-test; p < 0.05 -> Try transform or Wilcoxon"),
         sprintf(""),
-        sprintf("# 2. Execute Parametric Paired t-test (if normal) or Wilcoxon Signed-Rank (if non-normal)"),
-        sprintf("t.test(data$%s, data$%s, paired = TRUE)     # Parametric Paired t-test", c1, c2),
-        sprintf("wilcox.test(data$%s, data$%s, paired = TRUE)# Non-Parametric Wilcoxon Signed-Rank test", c1, c2)
+        sprintf("# 2. ASSUMPTION GRAPH: Histogram & Normal Q-Q Plot of Paired Differences (d)"),
+        sprintf("#    WHY: Paired t-tests assume the DIFFERENCES (not raw groups) are normally distributed!"),
+        sprintf("par(mfrow = c(1, 2))"),
+        sprintf("hist(diffs, col = 'lightblue', border = 'white', main = 'Paired Differences (%s - %s)', xlab = 'Difference'); abline(v = 0, col = 'red', lty = 2, lwd = 2)", parsed$orig_cols[1], parsed$orig_cols[2]),
+        sprintf("qqnorm(diffs, pch = 19, col = 'steelblue'); qqline(diffs, col = 'firebrick', lwd = 2)"),
+        sprintf("par(mfrow = c(1, 1))"),
+        sprintf(""),
+        sprintf("# 3. Execute Parametric Paired t-test (if normal) or Wilcoxon Signed-Rank (if non-normal)"),
+        sprintf("t.test(%s$%s, %s$%s, paired = TRUE)           # Parametric Paired t-test", df_name, c1, df_name, c2),
+        sprintf("wilcox.test(%s$%s, %s$%s, paired = TRUE)      # Non-Parametric Wilcoxon Signed-Rank test", df_name, c1, df_name, c2),
+        sprintf(""),
+        sprintf("# 4. PRIMARY FINAL GRAPH: Connected-Subject Paired Slopegraph + Boxplot"),
+        sprintf("#    WHY: Gray lines connect each individual across both conditions so you can visually"),
+        sprintf("#         see whether almost every subject shifts in the same direction!"),
+        sprintf("library(ggplot2)"),
+        sprintf("df_long <- data.frame(ID = factor(rep(seq_len(nrow(%s)), 2)),", df_name),
+        sprintf("                      Condition = factor(rep(c('%s', '%s'), each = nrow(%s)), levels = c('%s', '%s')),",
+                parsed$orig_cols[1], parsed$orig_cols[2], df_name, parsed$orig_cols[1], parsed$orig_cols[2]),
+        sprintf("                      Value = c(%s$%s, %s$%s))", df_name, c1, df_name, c2),
+        sprintf("ggplot(df_long, aes(x = Condition, y = Value)) +"),
+        sprintf("  geom_boxplot(aes(fill = Condition), alpha = 0.35, width = 0.4, outlier.shape = NA) +"),
+        sprintf("  geom_line(aes(group = ID), color = 'gray45', alpha = 0.6, linewidth = 0.7) +"),
+        sprintf("  geom_point(aes(color = Condition), size = 2.8, alpha = 0.9) +"),
+        sprintf("  stat_summary(fun = mean, geom = 'point', shape = 23, size = 4, fill = 'white', color = 'black') + # White Diamond = Mean"),
+        sprintf("  labs(title = 'Paired Comparison: %s vs. %s', y = 'Measurement') +", parsed$orig_cols[1], parsed$orig_cols[2]),
+        sprintf("  theme_minimal(base_size = 13) + theme(legend.position = 'none')")
       )
     } else {
       yq <- .sym_q(y_col); xq <- .sym_q(x_cols[1])
       lines <- c(lines,
         sprintf("# 1. Execute Paired t-test / Wilcoxon Signed-Rank Test"),
-        sprintf("t.test(%s ~ %s, data = data, paired = TRUE)", yq, xq),
-        sprintf("wilcox.test(%s ~ %s, data = data, paired = TRUE)", yq, xq)
+        sprintf("t.test(%s ~ %s, data = %s, paired = TRUE)", yq, xq, df_name),
+        sprintf("wilcox.test(%s ~ %s, data = %s, paired = TRUE)", yq, xq, df_name)
       )
     }
 
+  # ----------------------------------------------------------------------------
+  # CASE 7: INDEPENDENT TWO-SAMPLE COMPARISON
+  # ----------------------------------------------------------------------------
   } else if (prob_type == "indep_2group") {
     yq <- .sym_q(y_col); xq <- .sym_q(x_cols[1])
     lines <- c(lines,
       sprintf("# 1. Check Normality & Homogeneity of Variance (Raw vs Transformed)"),
-      sprintf("shapiro.test(residuals(lm(%s ~ %s, data = data)))  # Normality check on raw data", yq, xq),
-      sprintf("fligner.test(%s ~ %s, data = data)                 # Equal variance check", yq, xq),
-      sprintf("biostat_transform(data)                            # Check if log10(Y) or sqrt(Y) fixes assumptions!"),
+      sprintf("mod <- lm(%s ~ %s, data = %s)", yq, xq, df_name),
+      sprintf("shapiro.test(residuals(mod))                  # Normality check on model residuals"),
+      sprintf("bartlett.test(%s ~ %s, data = %s)             # Bartlett's test for equal variance (Professor's primary test; p >= 0.05 = equal var)", yq, xq, df_name),
+      sprintf("fligner.test(%s ~ %s, data = %s)              # Fligner-Killeen test (robust backup if non-normal)", yq, xq, df_name),
+      sprintf("library(moments); skewness(residuals(mod)); kurtosis(residuals(mod)) # Skew near 0 = symmetric; Kurt near 3 = normal tails"),
+      sprintf("biostat_transform(%s)                         # Check if log10(Y) or sqrt(Y) fixes assumptions!", df_name),
       sprintf(""),
-      sprintf("# 2. Run Two-Sample Test Based on Assumptions"),
-      sprintf("t.test(%s ~ %s, data = data, var.equal = FALSE)    # Welch's t-test (unequal variances / default)", yq, xq),
-      sprintf("t.test(%s ~ %s, data = data, var.equal = TRUE)     # Student's t-test (equal variances)", yq, xq),
-      sprintf("wilcox.test(%s ~ %s, data = data)                  # Mann-Whitney U test (if transformations fail)", yq, xq)
+      sprintf("# 2. ASSUMPTION GRAPHS: Normal Q-Q Plot & Residuals vs. Fitted Values"),
+      sprintf("#    WHY: Verifies normality (dots follow diagonal line) and equal spread across both groups."),
+      sprintf("library(car)"),
+      sprintf("par(mfrow = c(1, 3))"),
+      sprintf("res <- residuals(mod); hist(res, freq = FALSE, col = 'lightblue', border = 'white', main = 'Histogram vs Normal'); curve(dnorm(x, mean(res), sd(res)), add = TRUE, col = 'firebrick', lwd = 2)"),
+      sprintf("qqPlot(res, col.lines = 'firebrick', main = 'QQ Plot w/ 95%% Envelope') # Dots inside shaded gray/blue band = Normal!"),
+      sprintf("plot(res ~ fitted(mod), pch = 19, xlab = 'Fitted Values', ylab = 'Residuals', main = 'Residuals vs Fitted'); abline(h = 0, lty = 2, col = 'red')"),
+      sprintf("par(mfrow = c(1, 1))"),
+      sprintf(""),
+      sprintf("# 3. Run Two-Sample Test Based on Assumptions"),
+      sprintf("t.test(%s ~ %s, data = %s, var.equal = FALSE) # Welch's t-test (unequal variances / safe default)", yq, xq, df_name),
+      sprintf("t.test(%s ~ %s, data = %s, var.equal = TRUE)  # Student's t-test (equal variances)", yq, xq, df_name),
+      sprintf("wilcox.test(%s ~ %s, data = %s)               # Mann-Whitney U test (if transformations fail)", yq, xq, df_name),
+      sprintf(""),
+      sprintf("# 4. PRIMARY FINAL GRAPH: Boxplot + Horizontal Jitter + Mean Diamond (Exact Wizard Plot!)"),
+      sprintf("#    WHY THIS GRAPH: Shows full raw distribution, median/IQR, skewness, AND group mean all at once."),
+      sprintf("#    NOTE ON JITTER: `width = 0.15` nudges dots left/right ONLY so identical values don't overlap;"),
+      sprintf("#                    vertical y-position is exact! `outlier.shape = NA` avoids drawing outliers twice."),
+      sprintf("library(ggplot2)"),
+      sprintf("ggplot(%s, aes(x = factor(%s), y = %s, fill = factor(%s))) +", df_name, xq, yq, xq),
+      sprintf("  geom_boxplot(alpha = 0.5, outlier.shape = NA, width = 0.5) +"),
+      sprintf("  geom_jitter(width = 0.15, alpha = 0.7, size = 2) +          # Horizontal jitter only"),
+      sprintf("  stat_summary(fun = mean, geom = 'point', shape = 23, size = 3.5, fill = 'white') + # White Diamond = Mean"),
+      sprintf("  labs(title = '%s by %s',", y_col, x_cols[1]),
+      sprintf("       subtitle = 'Boxes = Median/IQR | White Diamond = Group Mean | Points = Raw Data',"),
+      sprintf("       x = '%s', y = '%s') +", x_cols[1], y_col),
+      sprintf("  theme_minimal(base_size = 13) + theme(legend.position = 'none')"),
+      sprintf(""),
+      sprintf("# 5. ALTERNATIVE GRAPH: Barplot of Group Means +/- SEM (Classic Exam / Publication Format)"),
+      sprintf("ggplot(%s, aes(x = factor(%s), y = %s, fill = factor(%s))) +", df_name, xq, yq, xq),
+      sprintf("  stat_summary(fun = mean, geom = 'bar', width = 0.55, color = 'black', alpha = 0.8) +"),
+      sprintf("  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.18, linewidth = 0.8) +"),
+      sprintf("  labs(title = '%s by %s (Mean +/- SEM)', x = '%s', y = '%s (Mean +/- SEM)') +", y_col, x_cols[1], x_cols[1], y_col),
+      sprintf("  theme_classic(base_size = 13) + theme(legend.position = 'none')")
     )
 
+  # ----------------------------------------------------------------------------
+  # CASE 8: INDEPENDENT >2 GROUPS (ONE-WAY ANOVA / WELCH / KRUSKAL-WALLIS)
+  # ----------------------------------------------------------------------------
   } else if (prob_type == "indep_kgroup") {
     yq <- .sym_q(y_col); xq <- .sym_q(x_cols[1])
     lines <- c(lines,
       sprintf("# 1. Fit One-Way ANOVA & Check Residual Normality / Variance Homogeneity"),
-      sprintf("fit <- aov(%s ~ %s, data = data)", yq, xq),
-      sprintf("shapiro.test(residuals(fit))                # Normality of residuals"),
-      sprintf("fligner.test(%s ~ %s, data = data)          # Homogeneity of variance", yq, xq),
-      sprintf("biostat_transform(data)                     # Check if log10(Y) or sqrt(Y) fixes assumptions!"),
+      sprintf("fit <- aov(%s ~ %s, data = %s)", yq, xq, df_name),
+      sprintf("shapiro.test(residuals(fit))                  # Normality of residuals"),
+      sprintf("bartlett.test(%s ~ %s, data = %s)             # Bartlett's test for equal variance (Professor's primary test; p >= 0.05 = equal var)", yq, xq, df_name),
+      sprintf("fligner.test(%s ~ %s, data = %s)              # Fligner-Killeen test (robust backup if non-normal)", yq, xq, df_name),
+      sprintf("library(moments); skewness(residuals(fit)); kurtosis(residuals(fit)) # Skew near 0 = symmetric; Kurt near 3 = normal tails"),
+      sprintf("biostat_transform(%s)                         # Check if log10(Y) or sqrt(Y) fixes assumptions!", df_name),
       sprintf(""),
-      sprintf("# 2. Run Omnibus Test + Post-Hoc Comparisons"),
-      sprintf("summary(fit)                                # Standard One-Way ANOVA (if normal & equal var)"),
-      sprintf("TukeyHSD(fit)                               # Tukey's HSD post-hoc pairwise comparisons"),
-      sprintf("oneway.test(%s ~ %s, data = data, var.equal = FALSE) # Welch's ANOVA (if unequal var)", yq, xq),
-      sprintf("kruskal.test(%s ~ %s, data = data)          # Non-parametric Kruskal-Wallis (if transformations fail)", yq, xq)
+      sprintf("# 2. ASSUMPTION GRAPHS: Normal Q-Q Plot & Residuals vs. Fitted Values"),
+      sprintf("library(car)"),
+      sprintf("par(mfrow = c(1, 3))"),
+      sprintf("res <- residuals(fit); hist(res, freq = FALSE, col = 'lightblue', border = 'white', main = 'Histogram vs Normal'); curve(dnorm(x, mean(res), sd(res)), add = TRUE, col = 'firebrick', lwd = 2)"),
+      sprintf("qqPlot(res, col.lines = 'firebrick', main = 'QQ Plot w/ 95%% Envelope') # Dots inside shaded gray/blue band = Normal!"),
+      sprintf("plot(res ~ fitted(fit), pch = 19, xlab = 'Fitted Values', ylab = 'Residuals', main = 'Residuals vs Fitted'); abline(h = 0, lty = 2, col = 'red')"),
+      sprintf("par(mfrow = c(1, 1))"),
+      sprintf(""),
+      sprintf("# 3. Run Omnibus Test + Post-Hoc Comparisons"),
+      sprintf("summary(fit)                                  # Standard One-Way ANOVA (if normal & equal var)"),
+      sprintf("TukeyHSD(fit)                                 # Tukey's HSD post-hoc pairwise comparisons"),
+      sprintf("oneway.test(%s ~ %s, data = %s, var.equal = FALSE) # Welch's ANOVA (if unequal var)", yq, xq, df_name),
+      sprintf("kruskal.test(%s ~ %s, data = %s)              # Non-parametric Kruskal-Wallis (if transformations fail)", yq, xq, df_name),
+      sprintf(""),
+      sprintf("# 4. PRIMARY FINAL GRAPH: Boxplot + Horizontal Jitter + Mean Diamond (Exact Wizard Plot!)"),
+      sprintf("#    NOTE ON JITTER: `width = 0.15` spreads points horizontally so duplicates don't overlap; y-values are exact."),
+      sprintf("library(ggplot2)"),
+      sprintf("ggplot(%s, aes(x = factor(%s), y = %s, fill = factor(%s))) +", df_name, xq, yq, xq),
+      sprintf("  geom_boxplot(alpha = 0.5, outlier.shape = NA, width = 0.5) +"),
+      sprintf("  geom_jitter(width = 0.15, alpha = 0.7, size = 2) +"),
+      sprintf("  stat_summary(fun = mean, geom = 'point', shape = 23, size = 3.5, fill = 'white') + # White Diamond = Mean"),
+      sprintf("  labs(title = '%s by %s', subtitle = 'Boxes = Median/IQR | White Diamond = Mean | Points = Raw Data',", y_col, x_cols[1]),
+      sprintf("       x = '%s', y = '%s') +", x_cols[1], y_col),
+      sprintf("  theme_minimal(base_size = 13) + theme(legend.position = 'none')"),
+      sprintf(""),
+      sprintf("# 5. ALTERNATIVE GRAPH: Barplot of Group Means +/- SEM"),
+      sprintf("ggplot(%s, aes(x = factor(%s), y = %s, fill = factor(%s))) +", df_name, xq, yq, xq),
+      sprintf("  stat_summary(fun = mean, geom = 'bar', width = 0.6, color = 'black', alpha = 0.8) +"),
+      sprintf("  stat_summary(fun.data = mean_se, geom = 'errorbar', width = 0.2, linewidth = 0.8) +"),
+      sprintf("  labs(title = '%s by %s (Mean +/- SEM)', x = '%s', y = '%s (Mean +/- SEM)') +", y_col, x_cols[1], x_cols[1], y_col),
+      sprintf("  theme_classic(base_size = 13) + theme(legend.position = 'none')")
     )
 
+  # ----------------------------------------------------------------------------
+  # CASE 9: SIMPLE LINEAR REGRESSION & CORRELATION
+  # ----------------------------------------------------------------------------
   } else if (prob_type == "continuous_xy") {
     yq <- .sym_q(y_col); xq <- .sym_q(x_cols[1])
     lines <- c(lines,
       sprintf("# 1. Fit Ordinary Least Squares (OLS) Linear Regression"),
-      sprintf("mod <- lm(%s ~ %s, data = data)", yq, xq),
-      sprintf("shapiro.test(residuals(mod))                # Check normality of regression residuals"),
-      sprintf("biostat_transform(data)                     # Check if log10(Y) or log10(X) linearizes & normalizes!"),
-      sprintf("anova(mod)                                  # Regression ANOVA table (F-ratio & Mean Sq)"),
-      sprintf("summary(mod)                                # Intercept, Slope, R-squared, and p-value"),
+      sprintf("mod <- lm(%s ~ %s, data = %s)", yq, xq, df_name),
+      sprintf("shapiro.test(residuals(mod))                  # Check normality of regression residuals"),
+      sprintf("biostat_transform(%s)                         # Check if log10(Y) or log10(X) linearizes & normalizes!", df_name),
+      sprintf("anova(mod)                                    # Regression ANOVA table (F-ratio & Mean Sq)"),
+      sprintf("summary(mod)                                  # Intercept, Slope, R-squared, and p-value"),
       sprintf(""),
-      sprintf("# 2. Correlation Analysis (Parametric Pearson r vs Non-Parametric Spearman rho)"),
-      sprintf("cor.test(data$%s, data$%s, method = 'pearson')", xq, yq),
-      sprintf("cor.test(data$%s, data$%s, method = 'spearman')", xq, yq)
+      sprintf("# 2. ASSUMPTION GRAPHS: Normal Q-Q Plot & Residuals vs. Fitted (Check Linearity & Homoscedasticity)"),
+      sprintf("library(car)"),
+      sprintf("par(mfrow = c(1, 3))"),
+      sprintf("res <- residuals(mod); hist(res, freq = FALSE, col = 'lightblue', border = 'white', main = 'Histogram vs Normal'); curve(dnorm(x, mean(res), sd(res)), add = TRUE, col = 'firebrick', lwd = 2)"),
+      sprintf("qqPlot(res, col.lines = 'firebrick', main = 'QQ Plot w/ 95%% Envelope') # Dots inside shaded gray/blue band = Normal!"),
+      sprintf("plot(res ~ fitted(mod), pch = 19, xlab = 'Fitted Values', ylab = 'Residuals', main = 'Residuals vs Fitted'); abline(h = 0, lty = 2, col = 'red')"),
+      sprintf("par(mfrow = c(1, 1))"),
+      sprintf(""),
+      sprintf("# 3. Correlation Analysis (Parametric Pearson r vs Non-Parametric Spearman rho)"),
+      sprintf("cor.test(%s$%s, %s$%s, method = 'pearson')", df_name, xq, df_name, yq),
+      sprintf("cor.test(%s$%s, %s$%s, method = 'spearman')", df_name, xq, df_name, yq),
+      sprintf(""),
+      sprintf("# 4. PRIMARY FINAL GRAPH: Scatterplot + OLS Regression Line + 95%% Confidence Band"),
+      sprintf("#    WHY THIS GRAPH: Visualizes direction, strength, linearity, and uncertainty of the X -> Y relationship."),
+      sprintf("library(ggplot2)"),
+      sprintf("ggplot(%s, aes(x = %s, y = %s)) +", df_name, xq, yq),
+      sprintf("  geom_point(alpha = 0.75, size = 2.5, color = 'steelblue') +"),
+      sprintf("  geom_smooth(method = 'lm', se = TRUE, color = 'firebrick', fill = 'pink', alpha = 0.3) +"),
+      sprintf("  labs(title = 'Linear Regression: %s vs. %s',", y_col, x_cols[1]),
+      sprintf("       subtitle = 'Red line = OLS fit with 95%% confidence band', x = '%s', y = '%s') +", x_cols[1], y_col),
+      sprintf("  theme_minimal(base_size = 13)")
+    )
+
+  # ----------------------------------------------------------------------------
+  # CASE 10: CONTINGENCY TABLE (CHI-SQUARE / FISHER / G-TEST)
+  # ----------------------------------------------------------------------------
+  } else if (prob_type %in% c("contingency", "contingency_table")) {
+    lines <- c(lines,
+      sprintf("# 1. Build Contingency Table & Check Expected Counts"),
+      if (prob_type == "contingency_table") {
+        sprintf("tbl <- as.table(%s)", df_name)
+      } else {
+        sprintf("tbl <- table(%s$%s, %s$%s)", df_name, .sym_q(y_col), df_name, .sym_q(x_cols[1]))
+      },
+      sprintf("chisq.test(tbl, correct = FALSE)$expected     # All expected counts >= 5?"),
+      sprintf("chisq.test(tbl, correct = FALSE)              # Pearson's Chi-Square Test (if all E >= 5)"),
+      sprintf("fisher.test(tbl)                              # Fisher's Exact Test (if any E < 5)"),
+      sprintf(""),
+      sprintf("# 2. PRIMARY FINAL GRAPH: Mosaic Plot (Visualizes Categorical Proportions & Independence)"),
+      sprintf("#    WHY THIS GRAPH: Tile areas are proportional to counts; misaligned splits reveal association."),
+      sprintf("mosaicplot(tbl, main = 'Contingency Mosaic Plot', color = TRUE)")
+    )
+
+  # ----------------------------------------------------------------------------
+  # CASE 11: ONE-SAMPLE CONTINUOUS
+  # ----------------------------------------------------------------------------
+  } else if (prob_type == "one_sample_continuous") {
+    yq <- .sym_q(y_col)
+    lines <- c(lines,
+      sprintf("# 1. Check Normality & Run One-Sample Test"),
+      sprintf("shapiro.test(%s$%s)                           # p >= 0.05 -> t.test; p < 0.05 -> wilcox.test", df_name, yq),
+      sprintf("t.test(%s$%s, mu = 0)                         # Replace mu = 0 with your null hypothesis value", df_name, yq),
+      sprintf("wilcox.test(%s$%s, mu = 0)                    # Non-parametric alternative", df_name, yq),
+      sprintf(""),
+      sprintf("# 2. ASSUMPTION & DISTRIBUTION GRAPHS: Histogram with Density Curve + Normal Q-Q Plot"),
+      sprintf("par(mfrow = c(1, 2))"),
+      sprintf("hist(%s$%s, freq = FALSE, col = 'lightblue', border = 'white', main = 'Distribution of %s', xlab = '%s')", df_name, yq, y_col, y_col),
+      sprintf("lines(density(na.omit(%s$%s)), col = 'darkblue', lwd = 2)", df_name, yq),
+      sprintf("qqnorm(%s$%s, pch = 19, col = 'steelblue'); qqline(%s$%s, col = 'firebrick', lwd = 2)", df_name, yq, df_name, yq),
+      sprintf("par(mfrow = c(1, 1))")
     )
   }
 
   lines <- c(lines, "======================================================================\n")
   out_str <- paste(lines, collapse = "\n")
-  cat("\n", out_str, sep = "")
+  if (!isTRUE(silent)) cat("\n", out_str, sep = "")
   invisible(out_str)
 }
-
 # ------------------------------------------------------------------------------
 # 4. SELF-CHECKING ENGINE 2 & 3: `biostat_explain` & `biostat_check_math`
 # ------------------------------------------------------------------------------
@@ -1393,7 +1719,7 @@ biostat_explain <- function(df = NULL, response = NULL, predictor = NULL, paired
     }
   }
   biostat_wizard(df, response = response, predictor = predictor, paired = paired,
-                 model = model, random = random, transform = transform, plot = FALSE, show_code = TRUE)
+                 model = model, random = random, transform = transform, plot = FALSE, show_code = FALSE)
 }
 
 biostat_check_math <- function(df, response = NULL, predictor = NULL, paired = NULL) {
@@ -1558,7 +1884,7 @@ biostat_inspect <- function(df) {
 # ------------------------------------------------------------------------------
 # 6. DEDICATED SOLVER 1: BINARY LOGISTIC REGRESSION (PS7 Q1: Crayfish Mating)
 # ------------------------------------------------------------------------------
-biostat_logistic <- function(df, response = NULL, predictor = NULL, plot = TRUE, show_code = TRUE) {
+biostat_logistic <- function(df, response = NULL, predictor = NULL, plot = TRUE, show_code = FALSE) {
   parsed <- .auto_parse_roles(df, response = response, predictor = predictor, paired = FALSE, verbose = FALSE)
   df_use <- parsed$df
   if (is.null(response)) response <- parsed$response
@@ -1632,18 +1958,27 @@ biostat_logistic <- function(df, response = NULL, predictor = NULL, plot = TRUE,
   cat(sprintf("      increase by a numeric factor of %.3f (a %.1f%% increase in odds per unit).\n\n",
               or_factor, (or_factor - 1) * 100))
 
-  cat("3. Strength of Association Metrics:\n")
-  cat(sprintf("   * McFadden's Pseudo-R2       : %.4f (%.1f%% reduction in deviance)\n", mcfadden_r2, mcfadden_r2 * 100))
+  cat("3. Best-Fit Logistic Equation & Strength of Association:\n")
+  cat(sprintf("   * Log-Odds Equation          : ln(p / (1 - p)) = %.4f %s %.4f * (%s)\n",
+              b0, ifelse(b1 >= 0, "+", "-"), abs(b1), predictor))
+  cat(sprintf("   * Predicted Probability Eq.  : p = 1 / (1 + exp(-(%.4f %s %.4f * %s)))\n",
+              b0, ifelse(b1 >= 0, "+", "-"), abs(b1), predictor))
+  mcf_note <- if (mcfadden_r2 >= 0.4) "Excellent fit (> 0.40)" else if (mcfadden_r2 >= 0.2) "Good / strong fit (0.20 - 0.40)" else "Modest fit (< 0.20)"
+  cat(sprintf("   * McFadden's Pseudo-R2       : %.4f (%.1f%% reduction in deviance -> %s)\n",
+              mcfadden_r2, mcfadden_r2 * 100, mcf_note))
   cat(sprintf("   * Nagelkerke's Pseudo-R2     : %.4f\n", nagelkerke_r2))
   cat(sprintf("   * Cox & Snell Pseudo-R2      : %.4f\n", cox_snell_r2))
   cat(sprintf("   * Tjur's Coefficient of Disc.: %.4f\n", tjur_r2))
   cat(sprintf("   * Point-Biserial Correlation : r = %.4f (p = %.5g)\n", pb_cor$estimate, pb_cor$p.value))
 
-  if (show_code) {
-    .biostat_last_audit$last_code <- biostat_code(df_use, response = response, predictor = predictor)
-  }
+  .biostat_last_audit$last_code <- biostat_code(df_use, response = response, predictor = predictor, silent = !isTRUE(show_code))
 
+  if (!isTRUE(show_code)) cat("\n[TIP]: Run `biostat_code()` anytime to print the standalone R code & graph code.\n")
   if (plot) {
+    tryCatch({
+      biostat_resid_plot(fit_int)
+      cat("[PLOTS]: Generated 2 plots! Click '<' in the Plots pane for the 3-Panel Assumption Grid.\n")
+    }, error = function(e) NULL)
     if (.has_pkg("ggplot2")) {
       p <- ggplot2::ggplot(sub_df, ggplot2::aes(x = .data[[predictor]], y = .y_num)) +
         ggplot2::geom_jitter(height = 0.03, width = 0, alpha = 0.65, size = 2.5, color = "steelblue4") +
@@ -1738,7 +2073,7 @@ biostat_sem_barplot <- function(df, response, factor1, factor2 = NULL, title_str
 # 8. DEDICATED SOLVER 2: TWO-WAY MODEL I FACTORIAL ANOVA (PS7 Q2: Coral Growth)
 # ------------------------------------------------------------------------------
 biostat_factorial <- function(df, response = NULL, factor1 = NULL, factor2 = NULL,
-                              transform = "auto", alpha = 0.05, plot = TRUE, show_code = TRUE) {
+                              transform = "auto", alpha = 0.05, plot = TRUE, show_code = FALSE) {
   parsed <- .auto_parse_roles(df, response = response, predictor = c(factor1, factor2), verbose = FALSE)
   df_use <- parsed$df
   if (is.null(response)) response <- parsed$response
@@ -1858,13 +2193,16 @@ biostat_factorial <- function(df, response = NULL, factor1 = NULL, factor2 = NUL
     final_model <- fit_add
   }
 
-  if (show_code) {
-    .biostat_last_audit$last_code <- biostat_code(df_use, response = response, predictor = c(factor1, factor2))
-  }
+  .biostat_last_audit$last_code <- biostat_code(df_use, response = response, predictor = c(factor1, factor2), silent = !isTRUE(show_code))
 
   if (plot) {
+    tryCatch({
+      biostat_resid_plot(fit_int)
+      cat("\n[PLOTS]: Generated 2 plots! Click '<' in the Plots pane for the 3-Panel Assumption Grid.\n")
+    }, error = function(e) NULL)
     biostat_sem_barplot(sub_df, response, factor1, factor2, y_label = y_disp_label)
   }
+  if (!isTRUE(show_code)) cat("[TIP]: Run `biostat_code()` anytime to print the standalone R code & graph code.\n")
 
   invisible(final_model)
 }
@@ -1873,7 +2211,7 @@ biostat_factorial <- function(df, response = NULL, factor1 = NULL, factor2 = NUL
 # 9. DEDICATED SOLVER 3: MODEL III MIXED-EFFECTS FACTORIAL ANOVA (PS7 Q3: Medicago)
 # ------------------------------------------------------------------------------
 biostat_model3 <- function(df, response = NULL, fixed = NULL, random = NULL,
-                           transform = "auto", alpha = 0.05, plot = TRUE, show_code = TRUE) {
+                           transform = "auto", alpha = 0.05, plot = TRUE, show_code = FALSE) {
   parsed <- .auto_parse_roles(df, response = response, predictor = c(fixed, random),
                               model = "III", random = random, verbose = FALSE)
   df_use <- parsed$df
@@ -1991,10 +2329,8 @@ biostat_model3 <- function(df, response = NULL, fixed = NULL, random = NULL,
     }
   }
 
-  if (show_code) {
-    .biostat_last_audit$last_code <- biostat_code(df_use, response = response, predictor = c(fixed, random),
-                                                  model = "III", random = random)
-  }
+  .biostat_last_audit$last_code <- biostat_code(df_use, response = response, predictor = c(fixed, random),
+                                                model = "III", random = random, silent = !isTRUE(show_code))
 
   if (plot) {
     biostat_sem_barplot(sub_df, response, fixed, random, y_label = y_disp_label,
@@ -2013,7 +2349,7 @@ biostat_model3 <- function(df, response = NULL, fixed = NULL, random = NULL,
 # side by side when skewness is detected!
 # ------------------------------------------------------------------------------
 biostat_ancova <- function(df, response = NULL, covariate = NULL, group = NULL,
-                           transform = "auto", alpha = 0.05, plot = TRUE, show_code = TRUE) {
+                           transform = "auto", alpha = 0.05, plot = TRUE, show_code = FALSE) {
   parsed <- .auto_parse_roles(df, response = response, predictor = c(covariate, group), verbose = FALSE)
   df_use <- parsed$df
   if (is.null(response)) response <- parsed$response
@@ -2144,9 +2480,7 @@ biostat_ancova <- function(df, response = NULL, covariate = NULL, group = NULL,
     }
   }
 
-  if (show_code) {
-    .biostat_last_audit$last_code <- biostat_code(df_use, response = response, predictor = c(covariate, group))
-  }
+  .biostat_last_audit$last_code <- biostat_code(df_use, response = response, predictor = c(covariate, group), silent = !isTRUE(show_code))
 
   if (plot) {
     if (.has_pkg("ggplot2")) {
@@ -2182,7 +2516,7 @@ biostat_ancova <- function(df, response = NULL, covariate = NULL, group = NULL,
 # 11. DEDICATED SOLVER 5: MULTIPLE REGRESSION & AIC MODEL SELECTION (PS7 Q5: Symbionts)
 # ------------------------------------------------------------------------------
 biostat_multireg <- function(df, response = NULL, predictors = NULL,
-                             transform = "auto", alpha = 0.05, plot = TRUE, show_code = TRUE) {
+                             transform = "auto", alpha = 0.05, plot = TRUE, show_code = FALSE) {
   parsed <- .auto_parse_roles(df, response = response, predictor = predictors, verbose = FALSE)
   df_use <- parsed$df
   if (is.null(response))   response   <- parsed$response
@@ -2287,17 +2621,20 @@ biostat_multireg <- function(df, response = NULL, predictors = NULL,
 
   best_fml_str <- aic_df$Model_Formula[1]
   best_fit <- lm(as.formula(best_fml_str), data = sub_df)
+  cf_b <- coef(best_fit)
+  eq_terms <- paste(sapply(2:length(cf_b), function(i) {
+    sprintf("%s %.4f * (%s)", ifelse(cf_b[i] >= 0, "+", "-"), abs(cf_b[i]), names(cf_b)[i])
+  }), collapse = " ")
   cat(sprintf("\n--- STEP 4: BEST SELECTED MODEL BY AIC (%s) ---\n", best_fml_str))
-  cat(sprintf("Lowest AIC = %.2f | Multiple R2 = %.4f (%.1f%% variance explained) | Adjusted R2 = %.4f\n\n",
-              AIC(best_fit), summary(best_fit)$r.squared, summary(best_fit)$r.squared * 100, summary(best_fit)$adj.r.squared))
+  cat(sprintf("  * Best-Fit Equation : %s = %.4f %s\n", y_disp, cf_b[1], eq_terms))
+  cat(sprintf("  * Lowest AIC = %.2f | Multiple R2 = %.4f (%.1f%% of variance in '%s' explained) | Adjusted R2 = %.4f\n\n",
+              AIC(best_fit), summary(best_fit)$r.squared, summary(best_fit)$r.squared * 100, y_disp, summary(best_fit)$adj.r.squared))
   cat("Best Model ANOVA Table:\n")
   print(anova(best_fit))
   cat("\nBest Model Regression Summary:\n")
   print(summary(best_fit))
 
-  if (show_code) {
-    .biostat_last_audit$last_code <- biostat_code(df_use, response = response, predictor = predictors)
-  }
+  .biostat_last_audit$last_code <- biostat_code(df_use, response = response, predictor = predictors, silent = !isTRUE(show_code))
 
   if (plot) {
     panel_cor <- function(x, y, digits = 3, ...) {
@@ -2413,12 +2750,18 @@ biostat_assumptions <- function(df, response = NULL, predictor = NULL, paired = 
     var_ok <- ifelse(!is.na(flig_p), flig_p >= alpha, TRUE)
     norm_ok <- ifelse(!is.na(sw_res$p.value), sw_res$p.value >= alpha, TRUE) && all(is.na(grp_sw) | grp_sw >= alpha)
 
+    sk_ku <- .calc_skew_kurt(resids)
     cat(sprintf("1. Residual Normality (Shapiro-Wilk): p = %.4g -> %s\n",
                 sw_res$p.value, ifelse(norm_ok, "PASS", "FAIL (Will test log/sqrt transformations!)")))
+    cat(sprintf("   * Skewness = %.3f -> %s\n", sk_ku$skew, sk_ku$skew_note))
+    cat(sprintf("   * Kurtosis = %.3f -> %s\n", sk_ku$kurt, sk_ku$kurt_note))
     cat("   Group-level Shapiro-Wilk p-values:\n")
     print(round(grp_sw, 4))
-    cat(sprintf("2. Homogeneity of Variance: Bartlett p = %.4g | Fligner-Killeen p = %.4g -> %s\n",
-                bart_p, flig_p, ifelse(var_ok, "PASS (Equal var)", "FAIL (Unequal var)")))
+    cat(sprintf("2. Homogeneity of Variance (Bartlett & Fligner-Killeen):\n"))
+    cat(sprintf("   * Bartlett's Test (Professor's primary test) : p = %.4g -> %s\n",
+                bart_p, ifelse(!is.na(bart_p) && bart_p >= alpha, "PASS (Equal variances)", "FAIL (Unequal variances)")))
+    cat(sprintf("   * Fligner-Killeen (Robust to non-normality)  : p = %.4g -> %s\n",
+                flig_p, ifelse(var_ok, "PASS (Equal variances)", "FAIL (Unequal variances)")))
     return(invisible(list(parametric_ok = norm_ok && var_ok, normality_ok = norm_ok, variance_ok = var_ok)))
   } else {
     fit <- lm(y_clean ~ x_clean)
@@ -2428,8 +2771,11 @@ biostat_assumptions <- function(df, response = NULL, predictor = NULL, paired = 
     sw_y <- if (length(y_clean) >= 3 && length(y_clean) <= 5000) shapiro.test(y_clean) else list(p.value = NA)
     norm_ok <- (!is.na(sw_res$p.value) && sw_res$p.value >= alpha)
     bivar_ok <- (!is.na(sw_x$p.value) && sw_x$p.value >= alpha) && (!is.na(sw_y$p.value) && sw_y$p.value >= alpha)
+    sk_ku <- .calc_skew_kurt(resids)
     cat(sprintf("1. Regression Residual Normality (Shapiro-Wilk): p = %.4g -> %s\n",
                 sw_res$p.value, ifelse(norm_ok, "PASS", "FAIL (Will test log/sqrt transformations!)")))
+    cat(sprintf("   * Residual Skewness = %.3f -> %s\n", sk_ku$skew, sk_ku$skew_note))
+    cat(sprintf("   * Residual Kurtosis = %.3f -> %s\n", sk_ku$kurt, sk_ku$kurt_note))
     cat(sprintf("2. Bivariate Normality: Y p = %.4g | X p = %.4g -> %s\n",
                 sw_y$p.value, sw_x$p.value, ifelse(bivar_ok, "PASS", "FAIL")))
     return(invisible(list(parametric_ok = norm_ok, normality_ok = norm_ok, bivariate_normal = bivar_ok)))
@@ -2730,7 +3076,8 @@ biostat_plot <- function(df, response = NULL, predictor = NULL, paired = NULL,
 # ------------------------------------------------------------------------------
 biostat_wizard <- function(df, response = NULL, predictor = NULL, paired = NULL,
                            model = "auto", random = NULL, transform = "auto",
-                           question = NULL, mu = 0, alpha = 0.05, plot = TRUE, show_code = TRUE) {
+                           question = NULL, mu = 0, alpha = 0.05, plot = TRUE, show_code = FALSE) {
+  user_df_name <- paste(deparse(substitute(df)), collapse = "")
   inf <- biostat_infer(df, response = response, predictors = predictor,
                        paired = paired, model = model, random = random,
                        question = question, transform = transform, mu = mu, verbose_roles = TRUE)
@@ -2823,6 +3170,15 @@ biostat_wizard <- function(df, response = NULL, predictor = NULL, paired = NULL,
   cat("======================================================================\n")
 
   if (plot && length(predictors) <= 1) {
+    # Plot 1: 3-Panel Assumption Diagnostic Grid (Histogram + Normal Curve, Professor's Shaded QQ Plot, Residuals vs Fitted)
+    if (is.numeric(active_df[[response]]) && prob_type %in% c("indep_2group", "indep_kgroup", "continuous_xy", "paired_2group")) {
+      tryCatch({
+        biostat_resid_plot(active_df, response = response, predictor = predictor)
+        cat("[PLOTS]: Generated 2 plots! Click the blue '<' back arrow in RStudio's Plots pane to view the\n")
+        cat("         3-Panel Assumption Grid (Histogram+Normal, Shaded QQ Envelope, Residuals vs. Fitted).\n\n")
+      }, error = function(e) NULL)
+    }
+    # Plot 2: Final Publication-Ready Results Graph (shown immediately on screen)
     tryCatch(biostat_plot(active_df, response = response, predictor = predictor,
                           paired = paired, y_label = y_label_use, x_label = x_label_use, verbose_roles = FALSE),
              error = function(e) NULL)
@@ -2884,7 +3240,8 @@ biostat_wizard <- function(df, response = NULL, predictor = NULL, paired = NULL,
       print(t.test(df_use[[response]] ~ as.factor(df_use[[predictor]]), var.equal = FALSE))
     }
     cat(sprintf("Effect Size -> Cohen's d = %.3f\n", cohens_d))
-    if (show_code) .biostat_last_audit$last_code <- biostat_code(df, response = response, predictor = predictor)
+    .biostat_last_audit$last_code <- biostat_code(df, response = response, predictor = predictor, df_name = user_df_name, silent = !isTRUE(show_code))
+    if (!isTRUE(show_code)) cat("\n[TIP]: Run `biostat_code()` anytime to print the standalone R code & graph code for this analysis.\n")
     return(invisible(res))
 
   # 3. Paired 2-Group Problem
@@ -2918,7 +3275,8 @@ biostat_wizard <- function(df, response = NULL, predictor = NULL, paired = NULL,
       print(t.test(g1, g2, paired = TRUE))
     }
     cat(sprintf("Paired Effect Size -> Cohen's dz = %.3f\n", dz))
-    if (show_code) .biostat_last_audit$last_code <- biostat_code(df, response = response, predictor = predictor, paired = TRUE)
+    .biostat_last_audit$last_code <- biostat_code(df, response = response, predictor = predictor, paired = TRUE, df_name = user_df_name, silent = !isTRUE(show_code))
+    if (!isTRUE(show_code)) cat("\n[TIP]: Run `biostat_code()` anytime to print the standalone R code & graph code for this analysis.\n")
     return(invisible(res))
 
   # 4. Paired / Blocked >2 Groups
@@ -2966,15 +3324,27 @@ biostat_wizard <- function(df, response = NULL, predictor = NULL, paired = NULL,
         print(pairwise.wilcox.test(df_use[[response]], as.factor(df_use[[predictor]]), p.adjust.method = "holm", exact = FALSE))
       }
     }
-    if (show_code) .biostat_last_audit$last_code <- biostat_code(df, response = response, predictor = predictor)
+    .biostat_last_audit$last_code <- biostat_code(df, response = response, predictor = predictor, df_name = user_df_name, silent = !isTRUE(show_code))
+    if (!isTRUE(show_code)) cat("\n[TIP]: Run `biostat_code()` anytime to print the standalone R code & graph code for this analysis.\n")
     return(invisible(res))
 
   # 6. Continuous Y vs Continuous X (Simple Linear Regression & Correlation)
   } else if (prob_type == "continuous_xy") {
     cat(sprintf("-> Fitting Simple Linear Regression (OLS: %s ~ %s):\n", y_label_use, x_label_use))
     fit_lm <- lm(y ~ x)
+    s_lm   <- summary(fit_lm)
+    b0 <- coef(fit_lm)[1]; b1 <- coef(fit_lm)[2]
+    r_val <- cor(x, y, use = "complete.obs")
+    r2_val <- s_lm$r.squared; adj_r2 <- s_lm$adj.r.squared
     print(anova(fit_lm))
-    print(summary(fit_lm))
+    print(s_lm)
+    cat("\n--- BEST-FIT LINE EQUATION & STRENGTH OF ASSOCIATION ---\n")
+    cat(sprintf("  * Best-Fit Line Equation : %s = %.4f %s %.4f * (%s)\n",
+                y_label_use, b0, ifelse(b1 >= 0, "+", "-"), abs(b1), x_label_use))
+    cat(sprintf("  * Pearson r              : r = %.4f -> %s\n", r_val, .interpret_r(r_val)))
+    cat(sprintf("  * R-Squared (R2)         : R2 = %.4f (Adjusted R2 = %.4f)\n", r2_val, adj_r2))
+    cat(sprintf("    -> INTERPRETATION: %.1f%% of the variance in '%s' is explained by '%s'.\n",
+                r2_val * 100, y_label_use, x_label_use))
 
     if (assump$bivariate_normal) {
       cat(sprintf("\n-> Bivariate Normality PASS (%s). Running Pearson Correlation (r):\n",
@@ -2986,7 +3356,8 @@ biostat_wizard <- function(df, response = NULL, predictor = NULL, paired = NULL,
       cat("(Pearson Correlation also shown for reference):\n")
       print(cor.test(x, y, method = "pearson"))
     }
-    if (show_code) .biostat_last_audit$last_code <- biostat_code(df, response = response, predictor = predictor)
+    .biostat_last_audit$last_code <- biostat_code(df, response = response, predictor = predictor, df_name = user_df_name, silent = !isTRUE(show_code))
+    if (!isTRUE(show_code)) cat("\n[TIP]: Run `biostat_code()` anytime to print the standalone R code & graph code for this analysis.\n")
     return(invisible(fit_lm))
 
   # 7. Contingency Table
@@ -3045,7 +3416,7 @@ biostat_power_calc <- function(test_type = c("t.two", "t.paired", "t.one", "anov
 # 18. QUESTION-DRIVEN & DERIVED-COLUMN HELPERS (`biostat_ask` & `biostat_derive`)
 # ------------------------------------------------------------------------------
 # Paste the homework/exam question prompt directly in plain English!
-biostat_ask <- function(df, question, plot = TRUE, show_code = TRUE) {
+biostat_ask <- function(df, question, plot = TRUE, show_code = FALSE) {
   biostat_wizard(df, question = question, plot = plot, show_code = show_code)
 }
 
@@ -3089,28 +3460,26 @@ biostat_resid_plot <- function(df_or_model, response = NULL, predictor = NULL, t
   fit_vals <- fitted(fit)
   sw <- if (length(res) >= 3 && length(res) <= 5000) shapiro.test(res) else list(statistic = NA, p.value = NA)
 
+  sk_ku <- .calc_skew_kurt(res)
   old_par <- par(no.readonly = TRUE); on.exit(par(old_par))
-  par(mfrow = c(1, 2), mar = c(4.5, 4.5, 3.5, 1))
+  par(mfrow = c(1, 3), mar = c(4.5, 4.5, 3.8, 1))
 
-  # Panel 1: Normal Q-Q Plot (uses car::qqPlot if installed, just like professor!)
-  if (.has_pkg("car")) {
-    car::qqPlot(res, main = sprintf("Normal Q-Q Plot (%s)
-Shapiro W = %.3f, p = %.4g", fml_str, sw$statistic, sw$p.value),
-                ylab = "Residuals", pch = 19)
-  } else {
-    qqnorm(res, main = sprintf("Normal Q-Q Plot (%s)
-Shapiro W = %.3f, p = %.4g", fml_str, sw$statistic, sw$p.value),
-           ylab = "Residuals", pch = 19, col = "steelblue")
-    qqline(res, col = "firebrick", lwd = 2)
-  }
+  # Panel 1: Histogram with Normal Bell Curve Overlay
+  .plot_hist_normal(res,
+                    main_title = sprintf("1. Histogram vs. Normal Curve\nSkew = %.2f | Kurt = %.2f", sk_ku$skew, sk_ku$kurt),
+                    xlab_str = "Model Residuals")
 
-  # Panel 2: Residuals vs. Fitted Values (Professor's wedge-shape homoscedasticity check!)
+  # Panel 2: Professor-style car::qqPlot (red center line + shaded 95% confidence containment!)
+  .plot_prof_qq(res,
+                main_title = sprintf("2. QQ Plot w/ 95%% Envelope\nShapiro W = %.3f, p = %.4g", sw$statistic, sw$p.value),
+                ylab_str = "Residuals")
+
+  # Panel 3: Residuals vs. Fitted Values (Professor's wedge-shape homoscedasticity check!)
   plot(res ~ fit_vals, pch = 19, col = "steelblue4",
        xlab = "Predicted / Fitted Y Values", ylab = "Residuals",
-       main = "Homoscedasticity Check:
-Residuals vs. Fitted Y (Check for Wedge Shape)")
+       main = "3. Homoscedasticity Check:\nResiduals vs. Fitted Y (Wedge Check)")
   abline(h = 0, col = "firebrick", lwd = 2, lty = 2)
   invisible(fit)
 }
 
-message("Universal Gbiostats_toolkit.r (v7 - Complete Course + Agenda Scripts + Self-Check Engine) loaded!")
+message("Universal Gbiostats_toolkit.r (v10 - Clean Wizard + Dual Plots + On-Demand Code) loaded!")

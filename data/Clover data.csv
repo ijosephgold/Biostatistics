@@ -1,0 +1,73 @@
+Location,Lawn,Genotype,Frequency
+CSUN,Klotz,AC_LI_,1
+CSUN,Klotz,AC_lili,0
+CSUN,Klotz,acacLI_,0
+CSUN,Klotz,acaclili,0
+CSUN,NCOD,AC_LI_,0.5
+CSUN,NCOD,AC_lili,0.25
+CSUN,NCOD,acacLI_,0.125
+CSUN,NCOD,acaclili,0.125
+CSUN,Cleary Walk,AC_LI_,0.75
+CSUN,Cleary Walk,AC_lili,0
+CSUN,Cleary Walk,acacLI_,0.125
+CSUN,Cleary Walk,acaclili,0.125
+CSUN,North USU,AC_LI_,0.875
+CSUN,North USU,AC_lili,0
+CSUN,North USU,acacLI_,0.125
+CSUN,North USU,acaclili,0
+CSUN,Nordhoff Hall,AC_LI_,1
+CSUN,Nordhoff Hall,AC_lili,0
+CSUN,Nordhoff Hall,acacLI_,0
+CSUN,Nordhoff Hall,acaclili,0
+CSUN,Manzanita Hall,AC_LI_,0.875
+CSUN,Manzanita Hall,AC_lili,0
+CSUN,Manzanita Hall,acacLI_,0.125
+CSUN,Manzanita Hall,acaclili,0
+Antelope Valley,Marie Kerr E,AC_LI_,0.5
+Antelope Valley,Marie Kerr E,AC_lili,0.25
+Antelope Valley,Marie Kerr E,acacLI_,0.125
+Antelope Valley,Marie Kerr E,acaclili,0.125
+Antelope Valley,Marie Kerr N,AC_LI_,0.375
+Antelope Valley,Marie Kerr N,AC_lili,0.125
+Antelope Valley,Marie Kerr N,acacLI_,0.25
+Antelope Valley,Marie Kerr N,acaclili,0.25
+Antelope Valley,Arnie Quinones,AC_LI_,0.375
+Antelope Valley,Arnie Quinones,AC_lili,0.125
+Antelope Valley,Arnie Quinones,acacLI_,0.125
+Antelope Valley,Arnie Quinones,acaclili,0.375
+Antelope Valley,Pearblossom,AC_LI_,0.5
+Antelope Valley,Pearblossom,AC_lili,0.25
+Antelope Valley,Pearblossom,acacLI_,0.25
+Antelope Valley,Pearblossom,acaclili,0
+Antelope Valley,Everett Martin,AC_LI_,0.25
+Antelope Valley,Everett Martin,AC_lili,0
+Antelope Valley,Everett Martin,acacLI_,0.5
+Antelope Valley,Everett Martin,acaclili,0.25
+Antelope Valley,Forrest Hull,AC_LI_,0.25
+Antelope Valley,Forrest Hull,AC_lili,0.25
+Antelope Valley,Forrest Hull,acacLI_,0.25
+Antelope Valley,Forrest Hull,acaclili,0.25
+Camarillo,J. Spoor Broome,AC_LI_,0.75
+Camarillo,J. Spoor Broome,AC_lili,0.25
+Camarillo,J. Spoor Broome,acacLI_,0
+Camarillo,J. Spoor Broome,acaclili,0
+Camarillo,North Quad,AC_LI_,0.5
+Camarillo,North Quad,AC_lili,0.25
+Camarillo,North Quad,acacLI_,0.25
+Camarillo,North Quad,acaclili,0
+Camarillo,South Quad,AC_LI_,0.625
+Camarillo,South Quad,AC_lili,0.125
+Camarillo,South Quad,acacLI_,0.25
+Camarillo,South Quad,acaclili,0
+Camarillo,Central Quad,AC_LI_,0.375
+Camarillo,Central Quad,AC_lili,0.5
+Camarillo,Central Quad,acacLI_,0.125
+Camarillo,Central Quad,acaclili,0
+Camarillo,El Dorado Park,AC_LI_,1
+Camarillo,El Dorado Park,AC_lili,0
+Camarillo,El Dorado Park,acacLI_,0
+Camarillo,El Dorado Park,acaclili,0
+Camarillo,Potrero Park,AC_LI_,0.5
+Camarillo,Potrero Park,AC_lili,0.5
+Camarillo,Potrero Park,acacLI_,0
+Camarillo,Potrero Park,acaclili,0
